@@ -60,6 +60,7 @@ def start(ds, sdb):
 
 
 def stop():
+    global web,dns
     if web != None:
         web.Stop()
         web = None
