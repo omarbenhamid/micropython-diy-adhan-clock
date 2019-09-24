@@ -8,6 +8,7 @@ import network
 from microDNSSrv import MicroDNSSrv
 from microWebSrv import MicroWebSrv
 import time
+import sys
 
 wlan = None
 wlan = network.WLAN(network.AP_IF)
@@ -40,13 +41,22 @@ def updateConfig(cli, resp):
     data = cli.ReadRequestPostedFormData()
     if 'settime' in data:
         print('Set time ! to ', data["date"], data["time"])
+        return getStatus(cli,resp,"Time update not yet implemented")
     
-    getStatus(cli,resp,"Time update not yet implemented")
+    if 'loadcsv' in data:
+        try:
+            sdb.importcsv(data['csv'])
+            return getStatus(cli,resp,"Times Updated")
+        except Exception as err:
+            sys.print_exception(err)
+            return getStatus(cli,resp,"Error with CSV data : %s" % str(err))
+        
+    return getStatus(cli,resp)
 
-def start(ds, sdb):
-    global dns, web
-    ds = ds
-    sdb = sdb
+def start(_ds, _sdb):
+    global dns, web, ds, sdb
+    ds = _ds
+    sdb = _sdb
     ## Starting Wifi Access Poijnt
     wlan.active(1)
     ## Setting Up Capitve portal

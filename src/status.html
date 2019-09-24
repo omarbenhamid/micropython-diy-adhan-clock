@@ -13,5 +13,14 @@ Current Time is: {currentTime}
 	<input type="time" name="time"/>
 	<input type="submit" name="settime" value="Set Time">
 </form>
+<h2> Update times with CSV</h2>
+<p>
+Line format : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM
+</p>
+<form method="POST">
+	<textarea name="csv">
+	</textarea>
+	<input type="submit" name="loadcsv" value="Update times"/>
+</form>
 </body>
 </html>
