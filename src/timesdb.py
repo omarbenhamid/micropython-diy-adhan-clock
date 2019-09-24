@@ -5,6 +5,7 @@ Created on 21 sept. 2019
 '''
 import btree
 import time
+from util import localtime
 
 SALATS=['Fajr','Chorok', 'Dohr', 'Asr', 'Maghrib', 'Ishaa']
 MONTH31=[1,3,5,7,8,10,12]
@@ -79,7 +80,7 @@ class SalatDB:
     def findnextsalat(self, mindelayminutes=0):
         """ REturn the next salat after 'now' """
         
-        y,m,d,h,mi,_,_,_ = time.localtime()
+        y,m,d,h,mi,_,_,_ = localtime()
         mi = mi + +mindelayminutes
         
         sidx, (oy, omo, oda, oh, om) = self.findfirstsalatafter(y, m, d, h, mi)

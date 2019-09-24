@@ -4,6 +4,8 @@ import time
 import micropython
 import esp32
 from timesdb import SalatDB
+from util import localtime
+
 ##### BLE Update
 
 """
@@ -31,7 +33,7 @@ tx.write('foo')
 
 
 sdb = SalatDB()
-ds = RTC()
+
 
 #Wifi setup button
 wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
@@ -40,9 +42,11 @@ led=Pin(33, Pin.OUT)
 def sleepuntilnextsalat():
     """ returns idx when next salat time arrives """
     sidx, stime = sdb.findnextsalat(1)
-    delta = stime-time.mktime(time.localtime())
+    delta = stime-time.mktime(localtime())
+    
     print("Next salat in %d seconds" % delta)
     # Setup wakeup button
+    if delta > 24*60: delta=24*60
     esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
     machine.deepsleep(delta*1000)
 
@@ -51,6 +55,9 @@ def sleepuntilnextsalat():
 def adhan(sidx):
     print('Salat : %d' % sidx)
     
+timer = machine.Timer(0)
+def wifi_btn_to(timer):
+    micropython.schedule(lambda x: sleepuntilnextsalat(),0)
 
 _last_btn_press = 0
 def on_wifi_btn(pin):
@@ -60,22 +67,21 @@ def on_wifi_btn(pin):
     tick=time.ticks_ms() 
     if (tick - _last_btn_press) < 200: return
     _last_btn_press = tick
-    micropython.schedule(lambda x: sleepuntilnextsalat(),0)
-
+    timer.init(period=500, mode=machine.Timer.ONE_SHOT, callback=wifi_btn_to)
     
 if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
     # Config button prcessed or no salat times loaded
     import wificonfig
     PWM(led,1)
-    wificonfig.start(ds,sdb)
+    wificonfig.start(sdb)
     wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     print("TODO: set a timer to stop wifi config after N seconds (or maybe n seconds after last request ?")
 else:
     #elif machine.wake_reason() == machine.TIMER_WAKE:
     sidx, stime = sdb.findnextsalat()
     print("Next Salat is", sidx, stime)
-    currtime = time.mktime(time.localtime())
-    if stime < currtime and (currtime - stime) < 60:
+    currtime = time.mktime(localtime())
+    if stime <= currtime and (currtime - stime) < 60:
         print("Next salat matches current time! FIXME bad test")
         adhan(sidx)
     sleepuntilnextsalat() 

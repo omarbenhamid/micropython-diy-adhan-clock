@@ -9,6 +9,7 @@ from microDNSSrv import MicroDNSSrv
 from microWebSrv import MicroWebSrv
 import time
 import sys
+from util import localtime
 
 wlan = None
 wlan = network.WLAN(network.AP_IF)
@@ -17,8 +18,7 @@ wlan.config(essid="MySmartClock")
 dns = None
 web = None
 
-# The RTC
-ds = None
+
 # The salat database
 sdb = None
 
@@ -26,7 +26,7 @@ sdb = None
 def getStatus(cli, resp, message=""):
     with open("status.html",'r') as f:
         template = f.read()
-    y,m,d,h,mi,_,_,_ = time.localtime()
+    y,m,d,h,mi,_,_,_ = localtime()
     
     resp.WriteResponseOk(contentType     = "text/html",
                                 contentCharset  = "UTF-8",
@@ -53,9 +53,8 @@ def updateConfig(cli, resp):
         
     return getStatus(cli,resp)
 
-def start(_ds, _sdb):
-    global dns, web, ds, sdb
-    ds = _ds
+def start(_sdb):
+    global dns, web, sdb
     sdb = _sdb
     ## Starting Wifi Access Poijnt
     wlan.active(1)
