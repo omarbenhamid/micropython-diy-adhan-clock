@@ -1,6 +1,8 @@
-from machine import RTC
-from timesdb import SalatDB
+import machine
+from machine import Pin, RTC
 import time
+import micropython
+from timesdb import SalatDB
 ##### BLE Update
 
 """
@@ -43,5 +45,29 @@ def waitnextsalat():
 def adhan(sidx):
     print('Salat : %d' % sidx)
     
+    
+# Setup wificonfig button
+def toggle_wifi_config(a):
+    import wificonfig
+    if wificonfig.is_started():
+        print("Turn off wificonfig")
+        wificonfig.stop()
+    else:
+        print("Turn on wificonfig")
+        wificonfig.start(ds,sdb)
+
+_last_btn_press = 0
+def on_wifi_btn(pin):
+    global _last_btn_press
+    #DEbounce
+    tick=time.ticks_ms() 
+    if (tick - _last_btn_press) < 200: return
+    _last_btn_press = tick
+    micropython.schedule(toggle_wifi_config,0)
+
+wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
+wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+
+#Fixime:  Use timers ar lightsleep prevents any interaction
 #while True:
-adhan(waitnextsalat())
+#    adhan(waitnextsalat())

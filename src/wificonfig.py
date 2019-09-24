@@ -69,3 +69,5 @@ def stop():
         dns = None
     wlan.active(0)
 
+def is_started():
+    return web != None
