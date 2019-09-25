@@ -3,7 +3,7 @@ from machine import Pin, PWM, RTC
 import time
 import micropython
 import esp32
-from timesdb import SalatDB
+from timesdb import SalatDB, SALATS
 from util import localtime
 
 ##### BLE Update
@@ -38,13 +38,14 @@ sdb = SalatDB()
 #Wifi setup button
 wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
 led=Pin(33, Pin.OUT)
+buzzer = Pin(25)
 
 def sleepuntilnextsalat():
     """ returns idx when next salat time arrives """
     sidx, stime = sdb.findnextsalat(1)
     delta = stime-time.mktime(localtime())
     
-    print("Next salat in %d seconds" % delta)
+    print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
     # Setup wakeup button
     if delta > 24*60: delta=24*60
     esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
@@ -52,8 +53,50 @@ def sleepuntilnextsalat():
 
 # First initilization
 
+pwm = None
+def play_tone(freq, durationms=None):
+    global pwm
+    if freq == 0:
+        if pwm != None: pwm.deinit()
+        return
+    
+    if pwm == None:
+        pwm = PWM(buzzer, freq, 16992)
+    else:
+        pwm.init(freq, 16992)
+    
+    if durationms != None:
+        time.sleep_ms(durationms)
+        pwm.deinit()
+
 def adhan(sidx):
-    print('Salat : %d' % sidx)
+    print('Adhan %s' % SALATS[sidx])
+    
+    if sidx == 1: #chorok : beep only
+        for i in range(1,10):
+            play_tone(900,100)
+            time.sleep_ms(300 if i % 3 == 0 else 50)
+        return
+    
+    if sidx == 0: #Fajr special ringing
+        for i in range(1,17):
+            play_tone(1000,100)
+            time.sleep_ms(300 if i % 4 == 0 else 50)
+    
+    else:
+        for i in range(0, sidx):
+            play_tone(800,100)
+            time.sleep_ms(500)
+    
+    for i in range(0,3):
+        play_tone(262, 600)
+        play_tone(440, 200)
+        play_tone(247, 600)
+        time.sleep_ms(200)
+        play_tone(247, 600)
+        play_tone(440, 200)
+        play_tone(247, 600)
+        time.sleep_ms(200)
     
 timer = machine.Timer(0)
 def wifi_btn_to(timer):
