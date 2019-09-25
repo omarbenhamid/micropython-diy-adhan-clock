@@ -22,5 +22,18 @@ Line format : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM
 	</textarea>
 	<input type="submit" name="loadcsv" value="Update times"/>
 </form>
+
+<script>
+var field = document.getElementsByName("date")[0]
+date = new Date()
+
+field.value = date.getFullYear().toString() + '-' + (date.getMonth() + 1).toString().padStart(2, 0) +
+'-' + date.getDate().toString().padStart(2, 0);
+
+field = document.getElementsByName("time")[0]
+field.value = date.getHours().toString().padStart(2, 0) + ":" + date.getMinutes().toString().padStart(2, 0)
+
+
+</script>
 </body>
 </html>

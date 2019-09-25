@@ -9,7 +9,7 @@ from microDNSSrv import MicroDNSSrv
 from microWebSrv import MicroWebSrv
 import time
 import sys
-from util import localtime
+from util import localtime, settime
 
 wlan = None
 wlan = network.WLAN(network.AP_IF)
@@ -40,13 +40,16 @@ def getStatus(cli, resp, message=""):
 def updateConfig(cli, resp):
     data = cli.ReadRequestPostedFormData()
     if 'settime' in data:
-        print('Set time ! to ', data["date"], data["time"])
-        return getStatus(cli,resp,"Time update not yet implemented")
+        y,m,d = [int(x) for x in data["date"].split('-')]
+        h,mi = [int(x) for x in data["time"].split(":")]
+        settime(y,m,d,0,h,mi,0)
+        
+        return getStatus(cli,resp,"Time updated")
     
     if 'loadcsv' in data:
         try:
             sdb.importcsv(data['csv'])
-            return getStatus(cli,resp,"Times Updated")
+            return getStatus(cli,resp,"Salat timetable updated successfully")
         except Exception as err:
             sys.print_exception(err)
             return getStatus(cli,resp,"Error with CSV data : %s" % str(err))
