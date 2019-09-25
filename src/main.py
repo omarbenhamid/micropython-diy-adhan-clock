@@ -99,7 +99,7 @@ def adhan(sidx):
         time.sleep_ms(200)
     
 timer = machine.Timer(0)
-def wifi_btn_to(timer):
+def turnoff_wificonfig(timer):
     micropython.schedule(lambda x: sleepuntilnextsalat(),0)
 
 _last_btn_press = 0
@@ -110,7 +110,7 @@ def on_wifi_btn(pin):
     tick=time.ticks_ms() 
     if (tick - _last_btn_press) < 200: return
     _last_btn_press = tick
-    timer.init(period=500, mode=machine.Timer.ONE_SHOT, callback=wifi_btn_to)
+    timer.init(period=500, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
     
 if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
     # Config button prcessed or no salat times loaded
@@ -118,14 +118,15 @@ if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
     PWM(led,1)
     wificonfig.start(sdb)
     wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
-    print("TODO: set a timer to stop wifi config after N seconds (or maybe n seconds after last request ?")
+    print('Wifi config will auto turnoff afeter 5 minutes')
+    timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
+    
 else:
     #elif machine.wake_reason() == machine.TIMER_WAKE:
     sidx, stime = sdb.findnextsalat()
     print("Next Salat is", sidx, stime)
     currtime = time.mktime(localtime())
     if stime <= currtime and (currtime - stime) < 60:
-        print("Next salat matches current time! FIXME bad test")
         adhan(sidx)
     sleepuntilnextsalat() 
     
