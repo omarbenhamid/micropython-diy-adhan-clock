@@ -5,7 +5,7 @@ Created on 21 sept. 2019
 '''
 import btree
 import time
-from util import localtime
+from rtc import localtime
 
 SALATS=['Fajr','Chorok', 'Dohr', 'Asr', 'Maghrib', 'Ishaa']
 MONTH31=[1,3,5,7,8,10,12]

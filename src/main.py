@@ -4,7 +4,7 @@ import time
 import micropython
 import esp32
 from timesdb import SalatDB, SALATS
-from util import localtime
+from rtc import localtime
 
 ##### BLE Update
 
@@ -69,33 +69,51 @@ def play_tone(freq, durationms=None):
         time.sleep_ms(durationms)
         pwm.deinit()
 
+
+_stopadhan=False
+def on_stop_adhan(pin):
+    global _stopadhan
+    _stopadhan = True
+
 def adhan(sidx):
+    global _stopadhan
+    _stopadhan=False
+    wbutton.irq(on_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     print('Adhan %s' % SALATS[sidx])
-    
+    led.value(1)
     if sidx == 1: #chorok : beep only
         for i in range(1,10):
             play_tone(900,100)
             time.sleep_ms(300 if i % 3 == 0 else 50)
+            if _stopadhan: return
         return
     
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
+            led.value(1)
             play_tone(1000,100)
+            led.value(0)
+            if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
     
     else:
         for i in range(0, sidx):
+            led.value(1)
             play_tone(800,100)
+            led.value(0)
+            if _stopadhan: return
             time.sleep_ms(500)
-    
+    led.value(1)
     for i in range(0,3):
         play_tone(262, 600)
         play_tone(440, 200)
         play_tone(247, 600)
+        if _stopadhan: return
         time.sleep_ms(200)
         play_tone(247, 600)
         play_tone(440, 200)
         play_tone(247, 600)
+        if _stopadhan: return
         time.sleep_ms(200)
     
 timer = machine.Timer(0)
@@ -114,6 +132,7 @@ def on_wifi_btn(pin):
     
 if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
     # Config button prcessed or no salat times loaded
+    led.value(1)
     import wificonfig
     PWM(led,1)
     wificonfig.start(sdb)

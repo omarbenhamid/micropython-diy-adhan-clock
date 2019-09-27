@@ -9,7 +9,7 @@ from microDNSSrv import MicroDNSSrv
 from microWebSrv import MicroWebSrv
 import time
 import sys
-from util import localtime, settime
+from rtc import localtime, settime
 
 wlan = None
 wlan = network.WLAN(network.AP_IF)
