@@ -1,10 +1,13 @@
 import machine
-from machine import Pin, PWM, RTC
+from machine import Pin, PWM, UART
+import yx5300
 import time
 import micropython
+from micropython import const
 import esp32
 from timesdb import SalatDB, SALATS
 from rtc import localtime
+import urandom
 
 ##### BLE Update
 
@@ -39,6 +42,13 @@ sdb = SalatDB()
 wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
 led=Pin(33, Pin.OUT)
 buzzer = Pin(25)
+mp3player = UART(2,9600)
+
+FAJR_ADHAN_FOLDER=const(1)
+FAJR_ADHAN_COUNT=const(1)
+ALL_ADHAN_FOLDER=const(1)
+ALL_ADHAN_COUNT=const(1)
+
 
 def sleepuntilnextsalat():
     """ returns idx when next salat time arrives """
@@ -49,17 +59,24 @@ def sleepuntilnextsalat():
     # Setup wakeup button
     if delta > 24*60: delta=24*60
     esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
+    mp3player.write(yx5300.sleep_module())
     machine.deepsleep(delta*1000)
 
 # First initilization
 
 pwm = None
+_stopadhan=False
+def on_stop_adhan(pin):
+    global _stopadhan
+    _stopadhan = True
+    micropython.schedule(lambda x: mp3player.write(yx5300.stop()))
+
 def play_tone(freq, durationms=None):
     global pwm
     if freq == 0:
         if pwm != None: pwm.deinit()
         return
-    
+    if _stopadhan: return
     if pwm == None:
         pwm = PWM(buzzer, freq, 16992)
     else:
@@ -70,10 +87,6 @@ def play_tone(freq, durationms=None):
         pwm.deinit()
 
 
-_stopadhan=False
-def on_stop_adhan(pin):
-    global _stopadhan
-    _stopadhan = True
 
 def adhan(sidx):
     global _stopadhan
@@ -88,6 +101,10 @@ def adhan(sidx):
             if _stopadhan: return
         return
     
+    mp3player.write(yx5300.wake_module())
+    time.sleep_ms(200)
+    mp3player.write(yx5300.set_volume(30))
+    
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
             led.value(1)
@@ -95,6 +112,8 @@ def adhan(sidx):
             led.value(0)
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
+        led.value(1)
+        mp3player.write(yx5300.play_track( urandom.randrange(1,FAJR_ADHAN_COUNT+1) , FAJR_ADHAN_FOLDER))
     
     else:
         for i in range(0, sidx):
@@ -103,18 +122,8 @@ def adhan(sidx):
             led.value(0)
             if _stopadhan: return
             time.sleep_ms(500)
-    led.value(1)
-    for i in range(0,3):
-        play_tone(262, 600)
-        play_tone(440, 200)
-        play_tone(247, 600)
-        if _stopadhan: return
-        time.sleep_ms(200)
-        play_tone(247, 600)
-        play_tone(440, 200)
-        play_tone(247, 600)
-        if _stopadhan: return
-        time.sleep_ms(200)
+        led.value(1)
+        mp3player.write(yx5300.play_track( urandom.randrange(1,ALL_ADHAN_COUNT+1) , ALL_ADHAN_FOLDER))
     
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):

@@ -29,6 +29,7 @@
 	0x0D	Resume playback
 	0x0E	Pause playback
 	0x16	Stop playback
+	0x0F	Play with track index and folder index
 			
 """
 
@@ -45,75 +46,67 @@ def command_base():
 	return command
 	
 def play_next():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x01
 	return command
 
 def play_previous():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x02
 	return command
 	
-def play_track(track_id):
-	command=bytearray()
+def play_track(track_id, folder_id=None):
 	command=command_base()
-	command[3]=0x03
+	if folder_id == None:
+		command[3]=0x03
+	else:
+		command[3]=0x0F
+		command[5]=folder_id
 	command[6]=track_id
 	return command
 	
 def volume_up():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x04
 	return command
 
 def volume_down():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x05
 	return command
 
 def set_volume(level):
-	command=bytearray()
 	command=command_base()
 	command[3]=0x06
 	command[6]=level
 	return command
 	
 def sleep_module():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x0A
 	return command
 
 def wake_module():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x0B
 	return command	
 
 def reset_module():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x0C
 	return command	
 	
 def pause():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x0E
 	return command	
 
 def resume():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x0D
 	return command		
 	
 def stop():
-	command=bytearray()
 	command=command_base()
 	command[3]=0x16
 	return command
