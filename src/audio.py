@@ -6,29 +6,41 @@ Created on 29 sept. 2019
 import yx5300
 import time
 from machine import Pin
+from micropython import const
 
 def tohexstring(bytes):
     return " ".join('%X' % b for b in bytes)
     
+    
+HOURS_TRACKS_FIRST=const(200)
+MINUTES_TRACKS_FIRST=const(100)
+
+SALAT_NAMES_TRACKS_FIRST=const(20)
+MSG_TIME_IS_NOW=const(1)
+MSG_WIFI_SETUP=const(2)
+MSG_AT=const(3)
+
 
 class AudioPlayer:
-    def __init__(self, uart, speaker_pin = None, sleep=True):
+    def __init__(self, uart, speaker_pin = None, sleep=True, speech_data_folder=None):
         """ Initialize with an instance of machine.UART where YX5300 is wired
         speaker_pin parameter is the pin where speeker is has VCC to turnit on/off at will
         sleep when True (default) the device is put to sleep else it is woken up"""
         self.player = uart
         self.spk = speaker_pin
+        self.speech_data_folder = speech_data_folder
         self.spk.init(Pin.OUT, Pin.PULL_DOWN)
         if sleep: self.sleep()
         else: self.wakeup()
     
-    def play_track(self, folder=None, track=None, waitmillis=0, pollstatusmillis=500):
+    def play_track(self, folder=None, track=None, waitmillis=0):
         """ Play given track of given folder, if no folder/track is provided : "next track is played" 
         if waitmillis is set the function blocks until either *playing finishes" or the value waitmillis is reached (put a big value to wait "undefenitely") 
-           you can use query_playback_status to check if playback is finished or not yet after wait timeout.
+           if timeout is reached an exception is raised.
          
-        poll status millis : the number of milliseconds to check if track finished : the higher it is the less frequently the player is polled for playback status
         """
+        
+        self._flush_uart_buffer()
         
         if folder == None or track == None:
             self.player.write(yx5300.play_next())
@@ -36,12 +48,7 @@ class AudioPlayer:
             self.player.write(yx5300.play_track(track, folder))
         if waitmillis == 0: return
         
-        timeout = time.ticks_ms() + waitmillis #Max 5 minutes
-        time.sleep_ms(200)
-        while self.query_playback_status() != 0x01 and (time.ticks_ms() < timeout): #Waiting for playing to start (0x01 see to YX5300 datasheet)
-            time.sleep_ms(200)
-        while self.query_playback_status() == 0x01 and (time.ticks_ms() < timeout): #playing state according to YX5300 datasheet
-            time.sleep_ms(pollstatusmillis)
+        self.wait_for_response(0x3D, time.ticks_ms() + waitmillis)
         
         
     def stop(self):
@@ -60,29 +67,22 @@ class AudioPlayer:
         time.sleep_ms(200)
         if self.spk: self.spk.value(1) #Turn on speaker
     
+    def _flush_uart_buffer(self):
+        while self.player.read():
+            pass
+    
     def _timeout_read(self,maxtime):
         ret = self.player.read(1)
         
         while not ret:
             if time.ticks_ms() > maxtime:
-                raise Excepton("Timeout reading input")
-            time.sleep_ms(100)
+                raise Exception("Timeout reading input")
+            time.sleep_ms(50)
             ret = self.player.read(1)
             
         return ret[0]
     
-            
-    def query(self,queryCmd, DL=0x00):
-        cmd = yx5300.command_base()
-        cmd[3] = queryCmd
-        cmd[6] = DL
-        # Flush buffer
-        while self.player.read():
-            pass
-        self.player.write(cmd)
-        
-        maxtime = time.ticks_ms() + 1000 # Timeout after one second
-        
+    def _read_response(self, maxtime):
         c = self._timeout_read(maxtime)
         if c != 0x7E: raise Exception("Unexpected header [0] 0x%x : 0x7E expected" % c )
         c = self._timeout_read(maxtime)
@@ -96,6 +96,31 @@ class AudioPlayer:
         
         return ret
     
+    def wait_for_response(self, code, maxtime, ignore_errors=False):
+        """ Waits for a response with given code (ignoring all other resposnes), raises exception when time.ticks_ms() reaches maxtime """
+        ret = self._read_response(maxtime)
+        crit = (code,) if ignore_errors else (code, 0x40)
+        
+        while ret[0] not in crit and (time.ticks_ms() < maxtime):
+            print('Ignored response %s' % tohexstring(ret))
+            ret = self._read_response(maxtime)
+            
+        if not ignore_errors and ret[0] == 0x40:
+            raise Exception("Error received from device : %s" % tohexstring(ret))
+        
+        if ret[0] == code: return ret
+        
+        raise Exception("Timeout waiting for response with code %X, last received : %s" % (code,tohexstring(ret)))
+            
+    def query(self,queryCmd, DL=0x00):
+        cmd = yx5300.command_base()
+        cmd[3] = queryCmd
+        cmd[6] = DL
+        # Flush buffer
+        self._flush_uart_buffer()
+        self.player.write(cmd)
+        
+        return self._read_response(time.ticks_ms() + 1000)
 
     def query_track_count(self, folder):
         ret = self.query(0x4E,DL=folder)
@@ -107,3 +132,18 @@ class AudioPlayer:
         if ret[0] != 0x42: raise Exception("Error querying playback status, response : %s" % tohexstring(ret))
         return ret[3]
     
+    def say_time(self, hours, minutes):
+        if not self.speech_data_folder: 
+            print("No speech data folder defined, not speeking ...")
+            return 
+        self.play_track(self.speech_data_folder, HOURS_TRACKS_FIRST+hours, waitmillis=30000)
+        self.play_track(self.speech_data_folder, MINUTES_TRACKS_FIRST+minutes, waitmillis=30000)
+        
+    def say_salat_at(self, sidx, hours, minutes):
+        if not self.speech_data_folder: 
+            print("No speech data folder defined, not speeking ...")
+            return 
+        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=30000)
+        self.play_track(self.speech_data_folder, MSG_AT, waitmillis=30000)
+        self.say_time(hours, minutes)
+        

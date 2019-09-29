@@ -13,7 +13,7 @@ from rtc import localtime, settime
 
 wlan = None
 wlan = network.WLAN(network.AP_IF)
-wlan.config(essid="MySmartClock")
+wlan.config(essid="MyFajrClock")
 
 dns = None
 web = None

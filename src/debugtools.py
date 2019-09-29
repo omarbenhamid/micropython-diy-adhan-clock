@@ -17,3 +17,6 @@ def adhannextminute(sidx=3, db=None):
     print("> del sdb.db['%06d']" % timesdb.minuteofyear(mo, da, h, mi+1))
     print("> sdb.save()")
     sleepuntilnextsalat()
+    
+def lastexception():
+    print(open('exception.log').read())

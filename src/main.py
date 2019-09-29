@@ -9,7 +9,7 @@ from timesdb import SalatDB, SALATS
 from rtc import localtime
 import urandom
 import sys
-from audio import AudioPlayer
+import audio
 
 ##### BLE Update
 
@@ -44,7 +44,7 @@ sdb = SalatDB()
 wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
 led=Pin(33, Pin.OUT)
 buzzer = Pin(25)
-audio = AudioPlayer(UART(2,9600), speaker_pin=Pin(2))
+player = audio.AudioPlayer(UART(2,9600), speaker_pin=Pin(2), speech_data_folder=3)
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
@@ -61,13 +61,14 @@ def sleepuntilnextsalat():
         # Setup wakeup button
         if delta > 24*60: delta=24*60
         esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
-        audio.sleep()
+        player.sleep()
         machine.deepsleep(delta*1000)
     except Exception as err:
         led.value(1)
         play_tone(100, 5000)
         with open('exception.log','w') as log:
             sys.print_exception(err,log)
+            sys.print_exception(err)
         raise
 # First initilization
 
@@ -76,7 +77,7 @@ _stopadhan=False
 def on_stop_adhan(pin):
     global _stopadhan
     _stopadhan = True
-    micropython.schedule(lambda x: audio.stop(),0)
+    micropython.schedule(lambda x: player.stop(),0)
 
 def play_tone(freq, durationms=None):
     global pwm
@@ -108,8 +109,8 @@ def adhan(sidx):
             if _stopadhan: return
         return
     
-    audio.wakeup()
-    audio.volume(30)
+    player.wakeup()
+    player.volume(30)
     
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
@@ -119,7 +120,7 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
         led.value(1)
-        audio.play_track(FAJR_ADHAN_FOLDER, urandom.randrange(1,audio.query_track_count(FAJR_ADHAN_FOLDER)+1), waitmillis=300000)
+        player.play_track(FAJR_ADHAN_FOLDER, urandom.randrange(1,player.query_track_count(FAJR_ADHAN_FOLDER)+1), waitmillis=300000)
         
     
     else:
@@ -130,7 +131,7 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(500)
         led.value(1)
-        audio.play_track(ALL_ADHAN_FOLDER, urandom.randrange(1,audio.query_track_count(ALL_ADHAN_FOLDER)+1), waitmillis=300000)
+        player.play_track(ALL_ADHAN_FOLDER, urandom.randrange(1,player.query_track_count(ALL_ADHAN_FOLDER)+1), waitmillis=300000)
     
     
     
@@ -151,15 +152,30 @@ def on_wifi_btn(pin):
 
 try:    
     if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
-        # Config button prcessed or no salat times loaded
-        led.value(1)
-        import wificonfig
-        PWM(led,1)
-        wificonfig.start(sdb)
-        wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
-        print('Wifi config will auto turnoff after 5 minutes')
-        timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
-        
+        if not wbutton.value(): #Button still pressed (0 = pressed !)
+            _,_,_,h,mi,_,_,_ = localtime()
+            player.wakeup()
+            player.play_track(player.speech_data_folder,audio.MSG_TIME_IS_NOW, 10000) #"Time now is"        
+            player.say_time(h, mi)
+            
+            sidx, stime = sdb.findnextsalat()
+            _,_,_,h,mi,_,_,_ = time.localtime(stime)
+            player.say_salat_at(sidx, h, mi)        
+            
+            sleepuntilnextsalat()
+            #never reaches this line because of deep sleep
+        else:
+            # Config button prcessed or no salat times loaded
+            led.value(1)
+            import wificonfig
+            PWM(led,1)
+            wificonfig.start(sdb)
+            wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+            print('Wifi config will auto turnoff after 5 minutes')
+            timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
+            player.wakeup()
+            player.play_track(player.speech_data_folder,audio.MSG_WIFI_SETUP) #"Time now is"        
+            
     else:
         #elif machine.wake_reason() == machine.TIMER_WAKE:
         sidx, stime = sdb.findnextsalat()
@@ -173,4 +189,4 @@ except Exception as err:
     play_tone(100, 5000)
     with open('exception.log','w') as log:
         sys.print_exception(err,log)
-    
+        sys.print_exception(err)
