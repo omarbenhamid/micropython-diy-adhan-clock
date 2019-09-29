@@ -8,6 +8,7 @@ import esp32
 from timesdb import SalatDB, SALATS
 from rtc import localtime
 import urandom
+import sys
 
 ##### BLE Update
 
@@ -88,16 +89,22 @@ def mp3_query(queryCmd, DL=0x00):
 
 def sleepuntilnextsalat():
     """ returns idx when next salat time arrives """
-    sidx, stime = sdb.findnextsalat(1)
-    delta = stime-time.mktime(localtime())
-    
-    print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
-    # Setup wakeup button
-    if delta > 24*60: delta=24*60
-    esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
-    mp3player.write(yx5300.sleep_module())
-    machine.deepsleep(delta*1000)
-
+    try:
+        sidx, stime = sdb.findnextsalat(1)
+        delta = stime-time.mktime(localtime())
+        
+        print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
+        # Setup wakeup button
+        if delta > 24*60: delta=24*60
+        esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
+        mp3player.write(yx5300.sleep_module())
+        machine.deepsleep(delta*1000)
+    except Exception as err:
+        led.value(1)
+        play_tone(100, 5000)
+        with open('exception.log','w') as log:
+            sys.print_exception(err,log)
+        raise
 # First initilization
 
 pwm = None
@@ -182,23 +189,29 @@ def on_wifi_btn(pin):
     if (tick - _last_btn_press) < 200: return
     _last_btn_press = tick
     timer.init(period=500, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
-    
-if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
-    # Config button prcessed or no salat times loaded
+
+try:    
+    if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
+        # Config button prcessed or no salat times loaded
+        led.value(1)
+        import wificonfig
+        PWM(led,1)
+        wificonfig.start(sdb)
+        wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+        print('Wifi config will auto turnoff after 5 minutes')
+        timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
+        
+    else:
+        #elif machine.wake_reason() == machine.TIMER_WAKE:
+        sidx, stime = sdb.findnextsalat()
+        print("Next Salat is", sidx, stime)
+        currtime = time.mktime(localtime())
+        if stime <= currtime and (currtime - stime) < 60:
+            adhan(sidx)
+        sleepuntilnextsalat() 
+except Exception as err:
     led.value(1)
-    import wificonfig
-    PWM(led,1)
-    wificonfig.start(sdb)
-    wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
-    print('Wifi config will auto turnoff afeter 5 minutes')
-    timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
-    
-else:
-    #elif machine.wake_reason() == machine.TIMER_WAKE:
-    sidx, stime = sdb.findnextsalat()
-    print("Next Salat is", sidx, stime)
-    currtime = time.mktime(localtime())
-    if stime <= currtime and (currtime - stime) < 60:
-        adhan(sidx)
-    sleepuntilnextsalat() 
+    play_tone(100, 5000)
+    with open('exception.log','w') as log:
+        sys.print_exception(err,log)
     
