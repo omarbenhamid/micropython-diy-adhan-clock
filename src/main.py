@@ -9,6 +9,7 @@ from timesdb import SalatDB, SALATS
 from rtc import localtime
 import urandom
 import sys
+from audio import AudioPlayer
 
 ##### BLE Update
 
@@ -43,49 +44,12 @@ sdb = SalatDB()
 wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
 led=Pin(33, Pin.OUT)
 buzzer = Pin(25)
-mp3player = UART(2,9600)
-spk=Pin(2,Pin.OUT, Pin.PULL_DOWN)
+audio = AudioPlayer(UART(2,9600), speaker_pin=Pin(2))
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
 
 
-
-def _timeout_read(maxtime):
-    ret = mp3player.read(1)
-    
-    while not ret:
-        if time.ticks_ms() > maxtime:
-            raise Excepton("Timeout reading input")
-        time.sleep_ms(100)
-        ret = mp3player.read(1)
-        
-    return ret[0]
-    
-            
-def mp3_query(queryCmd, DL=0x00):
-    cmd = yx5300.command_base()
-    cmd[3] = queryCmd
-    cmd[6] = DL
-    # Flush buffer
-    while mp3player.read():
-        pass
-    mp3player.write(cmd)
-    
-    maxtime = time.ticks_ms() + 1000 # Timeout after one second
-    
-    c = _timeout_read(maxtime)
-    if c != 0x7E: raise Exception("Unexpected header [0] 0x%x : 0x7E expected" % c )
-    c = _timeout_read(maxtime)
-    if c != 0xFF: raise Exception("Unexpected header [1] 0x%x : 0xFF expected" % c)
-    c = _timeout_read(maxtime)
-    ret = bytearray(c)
-    for i in range(0,c):
-        ret[i] = _timeout_read(maxtime)
-    c = _timeout_read(maxtime)
-    if c != 0xEF: raise Exception("Unexpected tail 0x%x : 0xEF expected" % c)
-    
-    return ret
 
 def sleepuntilnextsalat():
     """ returns idx when next salat time arrives """
@@ -97,7 +61,7 @@ def sleepuntilnextsalat():
         # Setup wakeup button
         if delta > 24*60: delta=24*60
         esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
-        mp3player.write(yx5300.sleep_module())
+        audio.sleep()
         machine.deepsleep(delta*1000)
     except Exception as err:
         led.value(1)
@@ -112,7 +76,7 @@ _stopadhan=False
 def on_stop_adhan(pin):
     global _stopadhan
     _stopadhan = True
-    micropython.schedule(lambda x: mp3player.write(yx5300.stop()),0)
+    micropython.schedule(lambda x: audio.stop(),0)
 
 def play_tone(freq, durationms=None):
     global pwm
@@ -144,10 +108,8 @@ def adhan(sidx):
             if _stopadhan: return
         return
     
-    mp3player.write(yx5300.wake_module())
-    spk.value(1) #Turn on speaker
-    time.sleep_ms(200)
-    mp3player.write(yx5300.set_volume(30))
+    audio.wakeup()
+    audio.volume(30)
     
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
@@ -157,7 +119,8 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
         led.value(1)
-        mp3player.write(yx5300.play_track( urandom.randrange(1,mp3_query(0x4E,DL=FAJR_ADHAN_FOLDER)[3]+1) , FAJR_ADHAN_FOLDER))
+        audio.play_track(FAJR_ADHAN_FOLDER, urandom.randrange(1,audio.query_track_count(FAJR_ADHAN_FOLDER)+1), waitmillis=300000)
+        
     
     else:
         for i in range(0, sidx):
@@ -167,14 +130,10 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(500)
         led.value(1)
-        mp3player.write(yx5300.play_track( urandom.randrange(1,mp3_query(0x4E,DL=ALL_ADHAN_FOLDER)[3]+1) , ALL_ADHAN_FOLDER))
-    timeout = time.ticks_ms() + 300000 #Max 5 minutes
+        audio.play_track(ALL_ADHAN_FOLDER, urandom.randrange(1,audio.query_track_count(ALL_ADHAN_FOLDER)+1), waitmillis=300000)
     
-    time.sleep_ms(200)
-    while mp3_query(0x42)[3] != 0x01 and (time.ticks_ms() < timeout): #Waiting for playing to start (0x01 see to YX5300 datasheet)
-        time.sleep_ms(200)
-    while mp3_query(0x42)[3] == 0x01 and (time.ticks_ms() < timeout): #playing state according to YX5300 datasheet
-        time.sleep_ms(500)
+    
+    
         
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):
