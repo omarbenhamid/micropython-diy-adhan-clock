@@ -127,7 +127,28 @@ class SalatDB:
             except ValueError as err:
                 raise ValueError("Line %d : bad times ... : %s" % str(err))
         self.save()
+        
+    def iter_times(self, month):
+        """ Iterate over key/value pairs of given month """
+        for k,v in self.db.items("%06d" % minuteofyear(month, 1, 0, 0), "%06d" % minuteofyear(month, 32, 23, 0)):
+            m = int(self.db[k].split(b',')[1])
+            if m == month: yield (k,v)
+        
+    def import_mawaqit_month(self, month, data):
+        """ Convert one month JSON (key = day num value = times) and load it"""
+        if type(data) == str: data = json.loads(data)
+        #ITerate until first day of following monh
+        for k,_ in self.iter_times(month):
+            del self.db[k]
             
+        #Load new month data
+        for day, times in data.items():
+            for idx,stime in enumerate(times):
+                self.setstime(month, int(day),idx,stime)
+        self.save()
+        
+    
+        
     def close(self):
         self.db.close()
         self.f.close()
