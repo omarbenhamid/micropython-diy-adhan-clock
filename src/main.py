@@ -102,12 +102,15 @@ def adhan(sidx):
     wbutton.irq(on_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     print('Adhan %s' % SALATS[sidx])
     led.value(1)
+    
     if sidx == 1: #chorok : beep only
         for i in range(1,10):
             play_tone(900,100)
             time.sleep_ms(300 if i % 3 == 0 else 50)
             if _stopadhan: return
         return
+    
+    urandom.seed(time.mktime(localtime()))
     
     player.wakeup()
     player.volume(30)
