@@ -111,6 +111,8 @@ def adhan(sidx):
         return
     
     urandom.seed(time.mktime(localtime()))
+    # RNG needs some heetup to get a good enough quality
+    for k in range(1,10): urandom.random()
     
     player.wakeup()
     player.volume(30)
