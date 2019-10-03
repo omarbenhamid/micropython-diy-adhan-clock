@@ -70,14 +70,19 @@ def sleepuntilnextsalat():
             sys.print_exception(err,log)
             sys.print_exception(err)
         raise
-# First initilization
+
+def _do_stop_adhan(_dumb):
+    player.stop()
+    time.sleep_ms(200) #To avoid disturbance of button click on wakeup
+    sleepuntilnextsalat()
+    # First initilization
 
 pwm = None
 _stopadhan=False
-def on_stop_adhan(pin):
+def irq_stop_adhan(pin):
     global _stopadhan
     _stopadhan = True
-    micropython.schedule(lambda x: player.stop(),0)
+    micropython.schedule(_do_stop_adhan,0)
 
 def play_tone(freq, durationms=None):
     global pwm
@@ -99,7 +104,7 @@ def play_tone(freq, durationms=None):
 def adhan(sidx):
     global _stopadhan
     _stopadhan=False
-    wbutton.irq(on_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+    wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     print('Adhan %s' % SALATS[sidx])
     led.value(1)
     
