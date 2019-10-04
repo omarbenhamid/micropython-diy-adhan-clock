@@ -120,7 +120,7 @@ def adhan(sidx):
     for k in range(1,10): urandom.random()
     
     player.wakeup()
-    player.volume(30)
+    player.volume(20)
     
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
