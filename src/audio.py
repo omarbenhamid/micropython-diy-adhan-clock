@@ -19,7 +19,7 @@ SALAT_NAMES_TRACKS_FIRST=const(20)
 MSG_TIME_IS_NOW=const(1)
 MSG_WIFI_SETUP=const(2)
 MSG_AT=const(3)
-
+MSG_AFTER=const(3) #FIXME/ put the right audio
 
 class AudioPlayer:
     def __init__(self, uart, speaker_pin = None, sleep=True, speech_data_folder=None):
@@ -146,4 +146,12 @@ class AudioPlayer:
         self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=30000)
         self.play_track(self.speech_data_folder, MSG_AT, waitmillis=30000)
         self.say_time(hours, minutes)
+        
+    def say_minutes_to_salat(sidx, salm):
+        if not self.speech_data_folder: 
+            print("No speech data folder defined, not speeking ...")
+            return 
+        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=30000)
+        self.play_track(self.speech_data_folder, MSG_AFTER, waitmillis=30000)
+        self.play_track(self.speech_data_folder, MINUTES_TRACKS_FIRST+salm, waitmillis=30000)
         

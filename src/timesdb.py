@@ -6,6 +6,7 @@ Created on 21 sept. 2019
 import btree
 import time
 from rtc import localtime
+from micropython import const
 
 SALATS=['Fajr','Chorok', 'Dohr', 'Asr', 'Maghrib', 'Ishaa']
 MONTH31=[1,3,5,7,8,10,12]
@@ -38,6 +39,17 @@ def minuteofyear(month,day, h, m):
     d += day - 1
     return (d * 24 + h) * 60 + m
 
+
+def stimekey(month, day, h, m):
+    return "%06d" % minuteofyear(month, day, h, m)
+
+LAST_SALAT_KEY=const("999999")
+
+def salarmkey(sidx):
+    return "salarm:%02d" % sidx
+
+LAST_ALARM_KEY=const("salarm:99")
+
 ### Salat Times Database
         
 class SalatDB:
@@ -62,10 +74,9 @@ class SalatDB:
     def findfirstsalatafter(self, year, month, day, hour, min, failifnotfound=False):
         """ Will return info for next salat a tuple : (salatindex,time) 
             time is in sceonds since epoch"""
-        moy = minuteofyear(month, day, hour, min)
         bisextile = year % 4 == 0
         
-        for nextsalat in self.db.values("%06d" % moy):
+        for nextsalat in self.db.values(stimekey(month, day, hour, min), LAST_SALAT_KEY):
             sidx,mo,da,h,m = (int(x) for x in nextsalat.split(b','))
             if mo == 2 and da == 29 and not bisextile: continue
             while h >= 24:
@@ -101,7 +112,7 @@ class SalatDB:
         except ValueError:
             raise ValueError("Bad time : %s" % stime)
         
-        self.db["%06d" % minuteofyear(month, day, h, m)]="%d,%d,%d,%d,%d" % (sidx, month, day, h, m)
+        self.db[stimekey(month, day, h, m)]="%d,%d,%d,%d,%d" % (sidx, month, day, h, m)
     
     def importcsv(self, csvlines):
         """Example : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM"""
@@ -130,7 +141,7 @@ class SalatDB:
         
     def iter_times(self, month):
         """ Iterate over key/value pairs of given month """
-        for k,v in self.db.items("%06d" % minuteofyear(month, 1, 0, 0), "%06d" % minuteofyear(month, 32, 23, 0)):
+        for k,v in self.db.items(stimekey(month, 1, 0, 0), stimekey(month, 32, 23, 0)):
             m = int(self.db[k].split(b',')[1])
             if m == month: yield (k,v)
         
@@ -148,7 +159,23 @@ class SalatDB:
         self.save()
         
     
+    def getsalarmdelay(self, sidx):
+        """ Return salat alarm delay in mutes or none if none set """
+        k = salarmkey(sidx)
+        if k in self.db : return int(self.db[k])
+        else return None
         
+    def setsalarm(self, sidx, delayminutes=0):
+        """ Set or delete salat alarm : 0 means delete """
+        k = salarmkey(sidx)
+        
+        if delayminutes == 0:
+            del self.db[k]
+        else:
+            self.db[k] = '%02d' % delayminutes
+    
+        self.save()
+    
     def close(self):
         self.db.close()
         self.f.close()

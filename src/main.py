@@ -55,11 +55,21 @@ def sleepuntilnextsalat():
     """ returns idx when next salat time arrives """
     try:
         sidx, stime = sdb.findnextsalat(1)
-        delta = stime-time.mktime(localtime())
+        salm = sdb.getsalarmdelay(sidx)
         
-        print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
+        delta = -1
+        if salm != None:
+            almtm = stime - (60 * salm)
+            delta = almtm-time.mktime(localtime())
+            if delta > 0:
+                print("Next salat alarm in %d seconds" % delta)
+        if delta <= 0:
+            delta = stime-time.mktime(localtime())
+            print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
+        
+        
         # Setup wakeup button
-        if delta > 24*60: delta=24*60
+        if delta > 24*3600: delta=24*3600
         esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
         player.sleep()
         machine.deepsleep(delta*1000)
@@ -100,7 +110,21 @@ def play_tone(freq, durationms=None):
         pwm.deinit()
 
 
-
+def alarm(sidx, salm):
+    global _stopadhan
+    _stopadhan=False
+    
+    wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+    if sidx == 0: #Fajr special ringing
+        for i in range(1,17):
+            led.value(1)
+            play_tone(1000,100)
+            led.value(0)
+            if _stopadhan: return
+            time.sleep_ms(300 if i % 4 == 0 else 50)
+        led.value(1)
+        player.say_minutes_to_salat(sidx, salm)
+    
 def adhan(sidx):
     global _stopadhan
     _stopadhan=False
@@ -193,6 +217,15 @@ try:
         currtime = time.mktime(localtime())
         if stime <= currtime and (currtime - stime) < 60:
             adhan(sidx)
+        #IF alamr make alarm
+        
+        salm = sdb.getsalarmdelay(sidx)
+        if salm != None:
+            almtm = stime - (60 * salm)
+            if almtm <= currtime and (currtime - stime) < 60:
+            alarm(sidx, salm)
+        
+        
         sleepuntilnextsalat() 
 except Exception as err:
     led.value(1)
