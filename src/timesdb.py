@@ -50,6 +50,10 @@ def salarmkey(sidx):
 
 LAST_ALARM_KEY="salarm:99"
 
+def svolumekey(sidx):
+    return "svol:%02d" % sidx
+LAST_SVOL_KEY="svol:99"
+
 ### Salat Times Database
         
 class SalatDB:
@@ -173,6 +177,21 @@ class SalatDB:
             if k in self.db: del self.db[k]
         else:
             self.db[k] = '%02d' % delayminutes
+    
+    def getsvolume(self, sidx):
+        """ Return salat alarm delay in mutes or none if none set """
+        k = self.db.get(svolumekey(sidx))
+        if k : return int(k)
+        else: return 30
+        
+    def setsvolume(self, sidx, volume):
+        """ Set or delete salat alarm : 0 means delete """
+        if volume < 0 or volume > 30: 
+            raise ValueError("Volume must be between 0 and 30")
+        
+        self.db[svolumekey(sidx)] = '%02d' % volume
+    
+    
     
     def close(self):
         self.db.close()

@@ -28,12 +28,16 @@ def getStatus(cli, resp, message=""):
         template = f.read()
     y,m,d,h,mi,_,_,_ = localtime()
     
+    args = dict()
+    args.update(('salat%dalm' % sidx, sdb.getsalarmdelay(sidx) or 0) for sidx in range(0,6))
+    args.update(('salat%dvol' % sidx, sdb.getsvolume(sidx) or 0) for sidx in range(0,6))
+    
     resp.WriteResponseOk(contentType     = "text/html",
                                 contentCharset  = "UTF-8",
         content = template.format(
             currentTime="%04d-%02d-%02d-T%02d:%02d" % (y,m,d,h,mi),
             message=message,
-            **dict(('salat%dalm' % sidx, sdb.getsalarmdelay(sidx) or 0) for sidx in range(0,6))
+            **args
         )
     )
 
@@ -58,6 +62,7 @@ def updateConfig(cli, resp):
     if 'updatenotif' in data:
         for sidx in range(0,6):
             sdb.setsalarmdelay(sidx, int(data['salat%dalm'%sidx]))
+            sdb.setsvolume(sidx, int(data['salat%dvol'%sidx]))
         sdb.save()
     
     return getStatus(cli,resp)

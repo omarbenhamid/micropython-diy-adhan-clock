@@ -114,6 +114,7 @@ def alarm(sidx, salm):
     global _stopadhan
     _stopadhan=False
     player.wakeup()
+    player.volume(sdb.getsvolume(sidx))
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     if sidx == 0: #Fajr special ringing
         for i in range(1,5):
@@ -143,7 +144,7 @@ def adhan(sidx):
     for k in range(1,10): urandom.random()
     
     player.wakeup()
-    player.volume(20)
+    player.volume(sdb.getsvolume(sidx))
     
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
@@ -188,6 +189,7 @@ try:
         if not wbutton.value(): #Button still pressed (0 = pressed !)
             _,_,_,h,mi,_,_,_ = localtime()
             player.wakeup()
+            player.volume(30)
             player.play_track(player.speech_data_folder,audio.MSG_TIME_IS_NOW, 10000) #"Time now is"        
             player.say_time(h, mi)
             
@@ -207,6 +209,7 @@ try:
             print('Wifi config will auto turnoff after 5 minutes')
             timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
             player.wakeup()
+            player.volume(30)
             player.play_track(player.speech_data_folder,audio.MSG_WIFI_SETUP) #"Time now is"        
             
     else:
