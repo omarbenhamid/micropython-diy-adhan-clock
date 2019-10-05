@@ -43,12 +43,12 @@ def minuteofyear(month,day, h, m):
 def stimekey(month, day, h, m):
     return "%06d" % minuteofyear(month, day, h, m)
 
-LAST_SALAT_KEY=const("999999")
+LAST_SALAT_KEY="999999"
 
 def salarmkey(sidx):
     return "salarm:%02d" % sidx
 
-LAST_ALARM_KEY=const("salarm:99")
+LAST_ALARM_KEY="salarm:99"
 
 ### Salat Times Database
         
@@ -161,20 +161,18 @@ class SalatDB:
     
     def getsalarmdelay(self, sidx):
         """ Return salat alarm delay in mutes or none if none set """
-        k = salarmkey(sidx)
-        if k in self.db : return int(self.db[k])
-        else return None
+        k = self.db.get(salarmkey(sidx))
+        if k : return int(k)
+        else: return None
         
-    def setsalarm(self, sidx, delayminutes=0):
+    def setsalarmdelay(self, sidx, delayminutes=0):
         """ Set or delete salat alarm : 0 means delete """
         k = salarmkey(sidx)
         
         if delayminutes == 0:
-            del self.db[k]
+            if k in self.db: del self.db[k]
         else:
             self.db[k] = '%02d' % delayminutes
-    
-        self.save()
     
     def close(self):
         self.db.close()

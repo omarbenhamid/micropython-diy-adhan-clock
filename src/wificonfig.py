@@ -32,7 +32,8 @@ def getStatus(cli, resp, message=""):
                                 contentCharset  = "UTF-8",
         content = template.format(
             currentTime="%04d-%02d-%02d-T%02d:%02d" % (y,m,d,h,mi),
-            message=message
+            message=message,
+            **dict(('salat%dalm' % sidx, sdb.getsalarmdelay(sidx) or 0) for sidx in range(0,6))
         )
     )
 
@@ -54,6 +55,11 @@ def updateConfig(cli, resp):
             sys.print_exception(err)
             return getStatus(cli,resp,"Error with CSV data : %s" % str(err))
         
+    if 'updatenotif' in data:
+        for sidx in range(0,6):
+            sdb.setsalarmdelay(sidx, int(data['salat%dalm'%sidx]))
+        sdb.save()
+    
     return getStatus(cli,resp)
 
 def start(_sdb):

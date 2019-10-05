@@ -113,15 +113,14 @@ def play_tone(freq, durationms=None):
 def alarm(sidx, salm):
     global _stopadhan
     _stopadhan=False
-    
+    player.wakeup()
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     if sidx == 0: #Fajr special ringing
-        for i in range(1,17):
+        for i in range(1,5):
             led.value(1)
             play_tone(1000,100)
             led.value(0)
             if _stopadhan: return
-            time.sleep_ms(300 if i % 4 == 0 else 50)
         led.value(1)
         player.say_minutes_to_salat(sidx, salm)
     
@@ -215,15 +214,14 @@ try:
         sidx, stime = sdb.findnextsalat()
         print("Next Salat is", sidx, stime)
         currtime = time.mktime(localtime())
-        if stime <= currtime and (currtime - stime) < 60:
+        if stime <= currtime and (currtime - stime) < 10:
             adhan(sidx)
         #IF alamr make alarm
         
         salm = sdb.getsalarmdelay(sidx)
         if salm != None:
             almtm = stime - (60 * salm)
-            if almtm <= currtime and (currtime - stime) < 60:
-            alarm(sidx, salm)
+            if almtm <= currtime and (currtime - almtm) < 10: alarm(sidx, salm)
         
         
         sleepuntilnextsalat() 
