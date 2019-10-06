@@ -116,14 +116,14 @@ def alarm(sidx, salm):
     player.wakeup()
     player.volume(sdb.getsvolume(sidx))
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
-    if sidx == 0: #Fajr special ringing
-        for i in range(1,5):
-            led.value(1)
-            play_tone(1000,100)
-            led.value(0)
-            if _stopadhan: return
+    for i in range(1,5):
         led.value(1)
-        player.say_minutes_to_salat(sidx, salm)
+        play_tone(1000,100)
+        led.value(0)
+        if _stopadhan: return
+        time.sleep_ms(50)
+    led.value(1)
+    player.say_minutes_to_salat(sidx, salm)
     
 def adhan(sidx):
     global _stopadhan
@@ -224,7 +224,8 @@ try:
         salm = sdb.getsalarmdelay(sidx)
         if salm != None:
             almtm = stime - (60 * salm)
-            if almtm <= currtime and (currtime - almtm) < 10: alarm(sidx, salm)
+            if almtm <= currtime and (currtime - almtm) < 10: 
+                alarm(sidx, salm)
         
         
         sleepuntilnextsalat() 
