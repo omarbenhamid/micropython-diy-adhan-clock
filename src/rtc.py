@@ -7,7 +7,7 @@ Created on 24 sept. 2019
 from machine import Pin
 import DS1302
 
-ds = DS1302.DS1302(Pin(5),Pin(18),Pin(19))
+ds = DS1302.DS1302(Pin(19),Pin(18),Pin(5))
 
 def localtime():
     y,m,d,dow,h,mi,s = ds.DateTime()
