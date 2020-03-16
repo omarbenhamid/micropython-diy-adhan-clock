@@ -10,7 +10,7 @@ WIFI_CONN_TIMEOUT_MS=30*1000
 
 conn = network.WLAN(network.STA_IF)
 
-def _iter_months(token_stream):
+def _iter_months(token_stream, sdb):
     for t,n in token_stream:
         if n != "calendar": continue
         t,n = next(token_stream)
@@ -21,8 +21,9 @@ def _iter_months(token_stream):
     mnum = 0
     while tok == (0,','):
         mnum = mnum + 1
-        month, tok = naya.parse_next(token_stream)
-        yield (mnum, month)
+        gc.collect()
+        sdb.import_mawaqit_month_stream(mnum, token_stream)
+        tok =  next(token_stream)
     
 def downloadtimes(SSID, password, apikey, mcode, sdb):
     if not conn.isconnected() or not conn.active():
@@ -41,11 +42,8 @@ def downloadtimes(SSID, password, apikey, mcode, sdb):
                   headers={"accept": "application/json","Api-Access-Token":apikey})
         
         if sdb == None: return r.content
-        for month, data in _iter_months(naya.tokenize(r.raw)):
-            print("Importing month", month)
-            print(data)
-            gc.collect()
-            sdb.import_mawaqit_month(month, data)
+        sdb.resetdb()
+        _iter_months(naya.tokenize(r.raw), sdb)
         return None
     finally:
         conn.disconnect()

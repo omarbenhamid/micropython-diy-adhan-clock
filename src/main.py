@@ -184,6 +184,13 @@ def on_wifi_btn(pin):
     _last_btn_press = tick
     timer.init(period=500, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
 
+def sync_times_mawaqit():
+    """ Supposes mawaqit.json exists with 'SSID','password','mcode','apikey' where 
+    mcode = mosque UUID in mawaqit (obtained through search api).
+    """
+    import mawaqit
+    mawaqit.dosync(sdb)
+
 try:    
     if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
         if not wbutton.value(): #Button still pressed (0 = pressed !)

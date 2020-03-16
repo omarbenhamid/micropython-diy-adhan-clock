@@ -7,6 +7,8 @@ import btree
 import time
 from rtc import localtime
 from micropython import const
+import gc
+import os
 
 SALATS=['Fajr','Chorok', 'Dohr', 'Asr', 'Maghrib', 'Ishaa']
 MONTH31=[1,3,5,7,8,10,12]
@@ -58,11 +60,20 @@ LAST_SVOL_KEY="svol:99"
         
 class SalatDB:
     def __init__(self, dbfile="salatimes.db"):
+        self.db = None
+        self.dbfile = dbfile
+        self.reopen()
+        
+    def reopen(self):
+        if self.db != None:
+            self.save()
+            self.close()
+            
         try:
-            self.f = open(dbfile, "r+b")
+            self.f = open(self.dbfile, "r+b")
         except OSError:
-            print("Salat db '",dbfile,"' seems not to exist ? creating a new one")
-            self.f = open(dbfile, "w+b")
+            print("Salat db '",self.dbfile,"' seems not to exist ? creating a new one")
+            self.f = open(self.dbfile, "w+b")
         self.db = btree.open(self.f)
     
     def isempty(self):
@@ -115,7 +126,8 @@ class SalatDB:
             if m < 0 or m > 59: raise ValueError
         except ValueError:
             raise ValueError("Bad time : %s" % stime)
-        
+        print(stimekey(month, day, h, m), "%d,%d,%d,%d,%d" % (sidx, month, day, h, m))
+        gc.collect()
         self.db[stimekey(month, day, h, m)]="%d,%d,%d,%d,%d" % (sidx, month, day, h, m)
     
     def importcsv(self, csvlines):
@@ -162,6 +174,27 @@ class SalatDB:
                 self.setstime(month, int(day),idx,stime)
         self.save()
         
+    def import_mawaqit_month_stream(self, month, token_stream):
+        self.reopen()
+        
+        assert(next(token_stream)==(0,'{'))
+        while True:
+            _,day = next(token_stream)
+            assert(next(token_stream) == (0,':'))
+            assert(next(token_stream) == (0,'['))
+            for idx in range(0,6):
+                _,stime = next(token_stream)
+                try:
+                    self.setstime(month, int(day), idx, stime)
+                except OSError:
+                    print("OSError ! Trying to reopen and go on")
+                    self.reopen()
+                    self.setstime(month, int(day), idx, stime)
+                assert(next(token_stream) in ((0,','),(0,']')))
+            nt = next(token_stream)
+            if nt == (0,'}'): break
+            assert(nt == (0,',')) #Move to next day
+            
     
     def getsalarmdelay(self, sidx):
         """ Return salat alarm delay in mutes or none if none set """
@@ -191,8 +224,14 @@ class SalatDB:
         
         self.db[svolumekey(sidx)] = '%02d' % volume
     
-    
-    
+    def resetdb(self):
+        if self.db != None:
+            self.close()
+        os.remove(self.dbfile)
+        self.reopen()
+        
     def close(self):
         self.db.close()
         self.f.close()
+        self.db = None
+        self.f = None
