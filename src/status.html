@@ -67,6 +67,11 @@ Line format : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM
 	</textarea>
 	<input type="submit" name="loadcsv" value="Update times"/>
 </form>
+<h2> Mawaqit.net Synchronization </h2>
+{mawaqitStatus}
+<form method="POST">
+    <input type="submit" value="Synchronize" name="syncmawaqit"/>
+</form>
 
 <script>
 var field = document.getElementsByName("date")[0]

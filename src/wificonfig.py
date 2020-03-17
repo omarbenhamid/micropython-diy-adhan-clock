@@ -10,6 +10,7 @@ from microWebSrv import MicroWebSrv
 import time
 import sys
 from rtc import localtime, settime
+import json
 
 wlan = None
 wlan = network.WLAN(network.AP_IF)
@@ -32,10 +33,18 @@ def getStatus(cli, resp, message=""):
     args.update(('salat%dalm' % sidx, sdb.getsalarmdelay(sidx) or 0) for sidx in range(0,6))
     args.update(('salat%dvol' % sidx, sdb.getsvolume(sidx) or 0) for sidx in range(0,6))
     
+    try:
+        with open("mawaqit.json",'r') as f:
+            json.load(f)
+        mawaqitStatus = "Mawaqit.net connection configured"
+    except:
+        mawaqitStatus = "Mawaqit.net connection not configured"
+        
     resp.WriteResponseOk(contentType     = "text/html",
                                 contentCharset  = "UTF-8",
         content = template.format(
             currentTime="%04d-%02d-%02d-T%02d:%02d" % (y,m,d,h,mi),
+            mawaqitStatus = mawaqitStatus,
             message=message,
             **args
         )
@@ -64,7 +73,15 @@ def updateConfig(cli, resp):
             sdb.setsalarmdelay(sidx, int(data['salat%dalm'%sidx]))
             sdb.setsvolume(sidx, int(data['salat%dvol'%sidx]))
         sdb.save()
-    
+    if 'syncmawaqit' in data:
+        try:
+            import mawaqit
+            mawaqit.dosync(sdb)
+            return getStatus(cli,resp,"Mawaqit Sync successful")
+        except Exception as err:
+            sys.print_exception(err)
+            return getStatus(cli,resp,"Error with CSV data : %s" % str(err))
+        
     return getStatus(cli,resp)
 
 def start(_sdb):
