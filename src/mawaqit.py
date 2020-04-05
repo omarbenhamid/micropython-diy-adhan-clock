@@ -25,7 +25,7 @@ def _iter_months(token_stream, sdb):
         sdb.import_mawaqit_month_stream(mnum, token_stream)
         tok =  next(token_stream)
     
-def downloadtimes(SSID, password, apikey, mcode, sdb):
+def downloadtimes(SSID, password, apikey, uuidMosquee, sdb):
     if not conn.isconnected() or not conn.active():
         conn.active(True)
         conn.disconnect()    
@@ -38,7 +38,7 @@ def downloadtimes(SSID, password, apikey, mcode, sdb):
         raise Exception("Cannot connect to wifi")
 
     try:
-        r=urequests.get('https://mawaqit.net/api/2.0/mosque/%s/prayer-times?calendar=yes' % mcode,
+        r=urequests.get('https://mawaqit.net/api/2.0/mosque/%s/prayer-times?calendar=yes' % uuidMosquee,
                   headers={"accept": "application/json","Api-Access-Token":apikey})
         
         if sdb == None: return r.content
@@ -51,5 +51,8 @@ def downloadtimes(SSID, password, apikey, mcode, sdb):
 def dosync(sdb):
     with open("mawaqit.json","r") as f:
         data = json.load(f)
+    with open("wifi.json","r") as f:
+        data.update(json.load(f))
+    
     return downloadtimes(sdb=sdb,**data)
 

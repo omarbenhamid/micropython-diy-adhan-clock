@@ -51,7 +51,7 @@ ALL_ADHAN_FOLDER=const(2)
 
 
 
-def sleepuntilnextsalat():
+def sleepuntilnextsalat(raise_exceptions=True):
     """ returns idx when next salat time arrives """
     try:
         sidx, stime = sdb.findnextsalat(1)
@@ -79,7 +79,7 @@ def sleepuntilnextsalat():
         with open('exception.log','w') as log:
             sys.print_exception(err,log)
             sys.print_exception(err)
-        raise
+        if raise_exceptions: raise
 
 def _do_stop_adhan(_dumb):
     player.stop()
@@ -172,7 +172,8 @@ def adhan(sidx):
         
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):
-    micropython.schedule(lambda x: sleepuntilnextsalat(),0)
+    micropython.schedule(lambda x: sleepuntilnextsalat(False),0)
+    
 
 _last_btn_press = 0
 def on_wifi_btn(pin):
@@ -213,8 +214,11 @@ try:
             PWM(led,1)
             wificonfig.start(sdb)
             wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
-            print('Wifi config will auto turnoff after 5 minutes')
-            timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
+            if sdb.isempty():
+                print('Wifi config started, salat times empty')
+            else:
+                print('Wifi config will auto turnoff after 5 minutes')
+                timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
             player.wakeup()
             player.volume(30)
             player.play_track(player.speech_data_folder,audio.MSG_WIFI_SETUP) #"Time now is"        
