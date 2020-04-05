@@ -1,14 +1,12 @@
 import time
 import json
-import network
 import urequests
 import naya
 import io
 import gc
+import wifi
+import config
 
-WIFI_CONN_TIMEOUT_MS=30*1000
-
-conn = network.WLAN(network.STA_IF)
 
 def _iter_months(token_stream, sdb):
     for t,n in token_stream:
@@ -25,19 +23,8 @@ def _iter_months(token_stream, sdb):
         sdb.import_mawaqit_month_stream(mnum, token_stream)
         tok =  next(token_stream)
     
-def downloadtimes(SSID, password, apikey, uuidMosquee, sdb):
-    if not conn.isconnected() or not conn.active():
-        conn.active(True)
-        conn.disconnect()    
-        conn.connect(SSID,password)
-        s=time.ticks_ms()
-        while not conn.isconnected() and ((time.ticks_ms() - s) < WIFI_CONN_TIMEOUT_MS):
-            time.sleep_ms(500)
-        
-    if not conn.isconnected():
-        raise Exception("Cannot connect to wifi")
-
-    try:
+def downloadtimes(apikey, uuidMosquee, sdb):
+    with wifi:
         r=urequests.get('https://mawaqit.net/api/2.0/mosque/%s/prayer-times?calendar=yes' % uuidMosquee,
                   headers={"accept": "application/json","Api-Access-Token":apikey})
         
@@ -45,14 +32,8 @@ def downloadtimes(SSID, password, apikey, uuidMosquee, sdb):
         sdb.resetdb()
         _iter_months(naya.tokenize(r.raw), sdb)
         return None
-    finally:
-        conn.disconnect()
+    
 
 def dosync(sdb):
-    with open("mawaqit.json","r") as f:
-        data = json.load(f)
-    with open("wifi.json","r") as f:
-        data.update(json.load(f))
-    
-    return downloadtimes(sdb=sdb,**data)
+    return downloadtimes(sdb=sdb,**(config.get("mawaqit")))
 

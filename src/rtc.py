@@ -4,9 +4,17 @@ Created on 24 sept. 2019
 @author: omar
 '''
 
+import config
 from machine import Pin, RTC
+import wifi
+import time
 
-USE_DS_1302=False
+c = config.get("rtc")
+
+
+USE_DS_1302=c.get("DS1302")
+TZ_DELTA_SECS=c.get("timezoneDeltaMinutes")*60
+
 
 if USE_DS_1302:
     import DS1302
@@ -31,3 +39,12 @@ def settime(y,m,d,dow,h,mi,s):
         rtc.start()
     else:
         rtc.datetime((y,m,d,dow,h,mi,s,0))
+        
+def ntpsync():
+    import ntptime
+    h = c.get("ntphost")
+    if h: ntptime.host = h
+    with wifi:
+        y,m,d,h,mi,s,_,_ = time.localtime(ntptime.time()+TZ_DELTA_SECS)
+    settime(y,m,d,1,h,mi,s)
+    

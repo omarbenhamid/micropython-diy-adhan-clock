@@ -1,0 +1,15 @@
+{
+    "rtc": {
+        "ntphost": "pool.ntp.org",
+        "timezoneDeltaMinutes": 60,
+        "DS1302":false
+    },
+    "wifi": {
+        "SSID":"XXXXX",
+        "password":"XXXXXXX"
+    },
+    "mawaqit": {
+        "apikey":"XXXXXXXXXXXXXX",
+        "uuidMosquee":"XXXXXXXXXXXXX"
+    }
+}
