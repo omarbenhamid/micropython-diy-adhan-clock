@@ -49,11 +49,16 @@ player = audio.AudioPlayer(UART(2,9600), speaker_pin=Pin(2), speech_data_folder=
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
 
-
-
 def sleepuntilnextsalat(raise_exceptions=True):
     """ returns idx when next salat time arrives """
     try:
+        if time.time() < 100000: #Still in year 2000 !
+            try:
+                import rtc
+                rtc.ntpsync()
+            except:
+                pass
+
         sidx, stime = sdb.findnextsalat(1)
         salm = sdb.getsalarmdelay(sidx)
         
