@@ -43,8 +43,9 @@ sdb = SalatDB()
 #Wifi setup button
 wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
 led=Pin(33, Pin.OUT)
-buzzer = Pin(25)
-player = audio.AudioPlayer(UART(2,9600), speaker_pin=Pin(2), speech_data_folder=3)
+speaker_vcc = None #Pin(2)
+
+player = audio.AudioPlayer(UART(2,9600), speaker_pin=speaker_vcc, speech_data_folder=3, ignoreerrors=True)
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
@@ -99,22 +100,6 @@ def irq_stop_adhan(pin):
     _stopadhan = True
     micropython.schedule(_do_stop_adhan,0)
 
-def play_tone(freq, durationms=None):
-    global pwm
-    if freq == 0:
-        if pwm != None: pwm.deinit()
-        return
-    if _stopadhan: return
-    if pwm == None:
-        pwm = PWM(buzzer, freq, 16992)
-    else:
-        pwm.init(freq, 16992)
-    
-    if durationms != None:
-        time.sleep_ms(durationms)
-        pwm.deinit()
-
-
 def alarm(sidx, salm):
     global _stopadhan
     _stopadhan=False
@@ -123,7 +108,7 @@ def alarm(sidx, salm):
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     for i in range(1,5):
         led.value(1)
-        play_tone(1000,100)
+        time.sleep_ms(100)
         led.value(0)
         if _stopadhan: return
         time.sleep_ms(50)
@@ -138,10 +123,8 @@ def adhan(sidx):
     led.value(1)
     
     if sidx == 1: #chorok : beep only
-        for i in range(1,10):
-            play_tone(900,100)
-            time.sleep_ms(300 if i % 3 == 0 else 50)
-            if _stopadhan: return
+        player.volume(30)
+        player.say_salat_name(1)
         return
     
     urandom.seed(time.mktime(localtime()))
@@ -154,23 +137,23 @@ def adhan(sidx):
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
             led.value(1)
-            play_tone(1000,100)
+            time.sleep_ms(100)
             led.value(0)
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
         led.value(1)
-        player.play_track(FAJR_ADHAN_FOLDER, urandom.randrange(1,player.query_track_count(FAJR_ADHAN_FOLDER)+1), waitmillis=300000)
+        player.play_adhan(FAJR_ADHAN_FOLDER)
         
     
     else:
         for i in range(0, sidx):
             led.value(1)
-            play_tone(800,100)
+            time.sleep_ms(100)
             led.value(0)
             if _stopadhan: return
             time.sleep_ms(500)
         led.value(1)
-        player.play_track(ALL_ADHAN_FOLDER, urandom.randrange(1,player.query_track_count(ALL_ADHAN_FOLDER)+1), waitmillis=300000)
+        player.play_track(ALL_ADHAN_FOLDER)
     
     
     
@@ -200,13 +183,16 @@ def sync_times_mawaqit():
 try:    
     if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
         if not wbutton.value(): #Button still pressed (0 = pressed !)
+            led.value(1)
+            time.sleep_ms(500)
             _,_,_,h,mi,_,_,_ = localtime()
             player.wakeup()
             player.volume(30)
-            player.play_track(player.speech_data_folder,audio.MSG_TIME_IS_NOW, 10000) #"Time now is"        
-            player.say_time(h, mi)
+            print("Saying curren ttime")
+            player.say_current_time(h, mi)
             
             sidx, stime = sdb.findnextsalat()
+            print("Saying next salat at %r" % stime)
             _,_,_,h,mi,_,_,_ = time.localtime(stime)
             player.say_salat_at(sidx, h, mi)        
             
@@ -247,7 +233,6 @@ try:
         sleepuntilnextsalat() 
 except Exception as err:
     led.value(1)
-    play_tone(100, 5000)
     with open('exception.log','w') as log:
         sys.print_exception(err,log)
         sys.print_exception(err)

@@ -5,6 +5,8 @@ Created on 29 sept. 2019
 '''
 import yx5300
 import time
+import urandom
+
 from machine import Pin
 from micropython import const
 
@@ -19,17 +21,26 @@ SALAT_NAMES_TRACKS_FIRST=const(20)
 MSG_TIME_IS_NOW=const(1)
 MSG_WIFI_SETUP=const(2)
 MSG_AT=const(3)
-MSG_AFTER=const(-1) #FIXME/ put the right audio
+
+MIN_ADHAN_COUNT=const(5) #Number of adhans to consider is query fails.
+ADHAN_TIMEOUT=const(300000)
+SAY_HOUR_TIMEOUT=const(2500)
+SAY_AND_TIMEOUT=const(1000)
+SAY_MIN_TIMEOUT=const(3000)
+SAY_AT_TIMEOUT=const(2000)
+SAY_SALAT_NAME_TIMEOUT=const(3500)
+SAY_TIME_IS_NOW_TIMEOUT=const(1500)
 
 class AudioPlayer:
-    def __init__(self, uart, speaker_pin = None, sleep=True, speech_data_folder=None):
+    def __init__(self, uart, speaker_pin = None, sleep=True, speech_data_folder=None, ignoreerrors=False):
         """ Initialize with an instance of machine.UART where YX5300 is wired
         speaker_pin parameter is the pin where speeker is has VCC to turnit on/off at will
         sleep when True (default) the device is put to sleep else it is woken up"""
         self.player = uart
         self.spk = speaker_pin
+        if self.spk: self.spk.init(Pin.OUT, Pin.PULL_DOWN)
         self.speech_data_folder = speech_data_folder
-        self.spk.init(Pin.OUT, Pin.PULL_DOWN)
+        self.ignoreerrors=ignoreerrors
         if sleep: self.sleep()
         else: self.wakeup()
     
@@ -37,7 +48,6 @@ class AudioPlayer:
         """ Play given track of given folder, if no folder/track is provided : "next track is played" 
         if waitmillis is set the function blocks until either *playing finishes" or the value waitmillis is reached (put a big value to wait "undefenitely") 
            if timeout is reached an exception is raised.
-         
         """
         
         self._flush_uart_buffer()
@@ -49,9 +59,11 @@ class AudioPlayer:
         else:
             self.player.write(yx5300.play_track(track, folder))
         if waitmillis == 0: return
-        
-        self.wait_for_response(0x3D, time.ticks_ms() + waitmillis)
-        
+        try:
+            self.wait_for_response(0x3D, time.ticks_ms() + waitmillis)
+        except:
+            if self.ignoreerrors: return
+            else: raise
         
     def stop(self):
         self.player.write(yx5300.stop())
@@ -62,7 +74,7 @@ class AudioPlayer:
     
     def sleep(self):
         self.player.write(yx5300.sleep_module())
-        if self.spk: self.spk.value(0) #Turn on speaker
+        if self.spk: self.spk.value(0) #Turn off speaker
         
     def wakeup(self):
         self.player.write(yx5300.wake_module())
@@ -122,13 +134,17 @@ class AudioPlayer:
         self._flush_uart_buffer()
         self.player.write(cmd)
         
-        return self._read_response(time.ticks_ms() + 1000)
+        return self._read_response(time.ticks_ms() + 500)
 
     def query_track_count(self, folder):
-        ret = self.query(0x4E,DL=folder)
-        if ret[0] != 0x4E: raise Exception("Error querying track count for folder %d, response : %s" % (folder,tohexstring(ret)))
-        return ret[3]
-    
+        try:
+            ret = self.query(0x4E,DL=folder)
+            if ret[0] != 0x4E: raise Exception("Error querying track count for folder %d, response : %s" % (folder,tohexstring(ret)))
+            return ret[3]
+        except:
+            if self.ignoreerrors: return MIN_ADHAN_COUNT
+            else: raise
+        
     def query_playback_status(self):
         ret = self.query(0x42)
         if ret[0] != 0x42: raise Exception("Error querying playback status, response : %s" % tohexstring(ret))
@@ -138,22 +154,31 @@ class AudioPlayer:
         if not self.speech_data_folder: 
             print("No speech data folder defined, not speeking ...")
             return 
-        self.play_track(self.speech_data_folder, HOURS_TRACKS_FIRST+hours, waitmillis=30000)
-        self.play_track(self.speech_data_folder, MINUTES_TRACKS_FIRST+minutes, waitmillis=30000)
+        self.play_track(self.speech_data_folder, HOURS_TRACKS_FIRST+hours, waitmillis=SAY_HOUR_TIMEOUT)
+        self.play_track(self.speech_data_folder, MINUTES_TRACKS_FIRST+minutes, waitmillis=SAY_MIN_TIMEOUT)
+    
+    def say_current_time(self, hours, minutes):
+        self.play_track(self.speech_data_folder,MSG_TIME_IS_NOW, waitmillis=SAY_TIME_IS_NOW_TIMEOUT) #"Time now is"        
+        self.say_time(hours, minutes)
         
     def say_salat_at(self, sidx, hours, minutes):
         if not self.speech_data_folder: 
             print("No speech data folder defined, not speeking ...")
             return 
-        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=30000)
-        self.play_track(self.speech_data_folder, MSG_AT, waitmillis=30000)
+        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=SAY_SALAT_NAME_TIMEOUT)
+        self.play_track(self.speech_data_folder, MSG_AT, waitmillis=SAY_AT_TIMEOUT)
         self.say_time(hours, minutes)
+    
+    def say_salat_name(self, sidx):
+        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=SAY_SALAT_NAME_TIMEOUT)
         
     def say_minutes_to_salat(self, sidx, salm):
         if not self.speech_data_folder: 
             print("No speech data folder defined, not speeking ...")
             return 
-        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=30000)
-        self.play_track(self.speech_data_folder, MSG_AFTER, waitmillis=30000)
-        self.play_track(self.speech_data_folder, MINUTES_TRACKS_FIRST+salm, waitmillis=30000)
+        self.play_track(self.speech_data_folder, SALAT_NAMES_TRACKS_FIRST+sidx, waitmillis=SAY_SALAT_NAME_TIMEOUT)
+        self.play_track(self.speech_data_folder, MINUTES_TRACKS_FIRST+salm, waitmillis=SAY_MIN_TIMEOUT)
+        
+    def play_adhan(self, folder):
+        self.play_track(folder, urandom.randrange(1,self.query_track_count(folder)+1), waitmillis=ADHAN_TIMEOUT)
         
