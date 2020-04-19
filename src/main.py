@@ -6,7 +6,7 @@ import micropython
 from micropython import const
 import esp32
 from timesdb import SalatDB, SALATS
-from rtc import localtime
+from rtc import localtime, ntpsync
 import urandom
 import sys
 import audio
@@ -55,11 +55,9 @@ def sleepuntilnextsalat(raise_exceptions=True):
     try:
         if time.time() < 100000: #Still in year 2000 !
             try:
-                import rtc
-                rtc.ntpsync()
+                ntpsync()
             except:
                 pass
-
         sidx, stime = sdb.findnextsalat(1)
         salm = sdb.getsalarmdelay(sidx)
         
@@ -153,6 +151,8 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(500)
         led.value(1)
+        player.say_current_time(h, mi)
+        time.sleep_ms(500)
         player.play_adhan(ALL_ADHAN_FOLDER)
     
     
@@ -216,6 +216,10 @@ try:
             
     else:
         #elif machine.wake_reason() == machine.TIMER_WAKE:
+        try:
+            ntpsync()
+        except:
+            pass
         sidx, stime = sdb.findnextsalat()
         print("Next Salat is", sidx, stime)
         currtime = time.mktime(localtime())
