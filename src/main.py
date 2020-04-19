@@ -153,7 +153,7 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(500)
         led.value(1)
-        player.play_track(ALL_ADHAN_FOLDER)
+        player.play_adhan(ALL_ADHAN_FOLDER)
     
     
     
