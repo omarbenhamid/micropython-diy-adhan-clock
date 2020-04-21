@@ -151,6 +151,7 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(500)
         led.value(1)
+        _,_,_,h,mi,_,_,_ = localtime()
         player.say_current_time(h, mi)
         time.sleep_ms(500)
         player.play_adhan(ALL_ADHAN_FOLDER)
