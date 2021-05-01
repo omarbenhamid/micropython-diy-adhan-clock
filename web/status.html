@@ -1,16 +1,21 @@
 <html>
 <body>
-<h1> Welcome to your Smart Clock !</h1>
+<h1> Welcome to your Fajr Clock !</h1>
 Current Time is: {currentTime}
 
 <p>
-	{message}	
+	{message}
 </p>
 <h2>Set date / time</h2>
 <form method="POST">
 	<input type="date" name="date"/>
 	<input type="time" name="time"/>
 	<input type="submit" name="settime" value="Set Time">
+</form><br/>
+<form method="POST">
+	Timezone Shift (in minutes):
+	<input type="number" name="tzmin" value="{currentTzDelta}"/>
+	<input type="submit" name="settz" value="Set Timezone Delta">
 </form>
 <h2>Notifications</h2>
 <form method="POST">
@@ -23,32 +28,32 @@ Current Time is: {currentTime}
 	</tr>
 	</thead>
 	<tbody>
-		<tr> 
+		<tr>
 			<td>Fajr</td>
 			<td><input name="salat0alm" value="{salat0alm}" type="number" min="0" max="60" title="0 means alarm disabled"/</td>
 			<td><input name="salat0vol" value="{salat0vol}" type="number" min="0" max="30"/</td>
 		</tr>
-		<tr> 
+		<tr>
 			<td>Chorok</td>
 			<td><input name="salat1alm" value="{salat1alm}" type="number" min="0" max="60" title="0 means alarm disabled"/</td>
 			<td><input name="salat1vol" value="{salat1vol}" type="number" min="0" max="30"/</td>
 		</tr>
-		<tr> 
+		<tr>
 			<td>Dohr</td>
 			<td><input name="salat2alm" value="{salat2alm}" type="number" min="0" max="60" title="0 means alarm disabled"/</td>
 			<td><input name="salat2vol" value="{salat2vol}" type="number" min="0" max="30"/</td>
 		</tr>
-		<tr> 
+		<tr>
 			<td>Asr</td>
 			<td><input name="salat3alm" value="{salat3alm}" type="number" min="0" max="60" title="0 means alarm disabled"/</td>
 			<td><input name="salat3vol" value="{salat3vol}" type="number" min="0" max="30"/</td>
 		</tr>
-		<tr> 
+		<tr>
 			<td>Maghrib</td>
 			<td><input name="salat4alm" value="{salat4alm}" type="number" min="0" max="60" title="0 means alarm disabled"/</td>
 			<td><input name="salat4vol" value="{salat4vol}" type="number" min="0" max="30"/</td>
 		</tr>
-		<tr> 
+		<tr>
 			<td>Icha</td>
 			<td><input name="salat5alm" value="{salat5alm}" type="number" min="0" max="60" title="0 means alarm disabled"/</td>
 			<td><input name="salat5vol" value="{salat5vol}" type="number" min="0" max="30"/</td>
@@ -67,11 +72,17 @@ Line format : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM
 	</textarea>
 	<input type="submit" name="loadcsv" value="Update times"/>
 </form>
+
+
 <h2> Mawaqit.net Synchronization </h2>
 {mawaqitStatus}
 <form method="POST">
     <input type="submit" value="Synchronize" name="syncmawaqit"/>
 </form>
+
+<h2> Wifi connection setup</h2>
+
+<a href="/wifi"> click here to configure wifi </a>
 
 <script>
 var field = document.getElementsByName("date")[0]

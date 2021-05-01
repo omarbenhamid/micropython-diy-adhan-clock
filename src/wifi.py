@@ -23,25 +23,42 @@ WIFI_CONN_TIMEOUT_MS=30*1000
 
 conn = network.WLAN(network.STA_IF)
 
-c = config.get("wifi")
-SSID = c['SSID']
-password = c['password']
-
-def __enter__():
-    global SSID, password
+def connect(SSID=None, password=None, timeoutmillis=None):
+    """
+        Connect to given or configured wifi.
+        If timeoutmillis is not set: retunr immediately
+    """
+    if SSID==None and password==None:
+        c = config.get("wifi")
+        if c==None: raise Exception("Wifi not configured")
+        SSID = c.get('SSID')
+        if not SSID: raise Exception("Wifi not configured properly")
+        password = c.get('password','')
+        
+        
     if not conn.isconnected() or not conn.active():
         conn.active(True)
         conn.disconnect()
         conn.connect(SSID,password)
         s=time.ticks_ms()
-        while not conn.isconnected() and ((time.ticks_ms() - s) < WIFI_CONN_TIMEOUT_MS):
+        if timeoutmillis == None:
+            return #Don't wait
+        while not conn.isconnected() and ((time.ticks_ms() - s) < timeoutmillis):
             time.sleep_ms(500)
+    
 
     if not conn.isconnected():
+        conn.active(False) #disable connection
         raise Exception("Cannot connect to wifi")
 
-
-def __exit__(*exc_info):
+def disconnect():
     if conn.isconnected():
         conn.disconnect()
     conn.active(False)
+
+def __enter__():
+    connect(timeoutmillis=WIFI_CONN_TIMEOUT_MS)
+
+
+def __exit__(*exc_info):
+    disconnect()

@@ -1,0 +1,23 @@
+<html>
+<body>
+<h1> Welcome to your Fajr Clock !</h1>
+
+{message}
+
+<h2>Wifi Setup</h2>
+
+<form method="POST">
+	<h3>Wifi</h2>
+	<p>
+	   <label for="network">Wifi SSID</label>&nbsp;<select name="SSID" value="{currSSID}">{networks}</select>
+	</p>
+	<p>
+	   <label for="pass">Wifi Password</label>&nbsp;<input id="pass" type="password" name="pass">
+    </p>
+    <input type="submit" name="wificonnect" value="Save and test"></input>&nbsp;
+    <input type="submit" name="deletewifi" value="Delete configuration"></input>
+</form>
+
+<a href="/status">Back to main page</a>
+</body>
+</html>

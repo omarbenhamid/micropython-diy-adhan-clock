@@ -10,6 +10,7 @@ from rtc import localtime, ntpsync
 import urandom
 import sys
 import audio
+import arch
 
 ##### BLE Update
 
@@ -41,11 +42,11 @@ sdb = SalatDB()
 
 
 #Wifi setup button
-wbutton = Pin(14,Pin.IN,Pin.PULL_UP)
-led=Pin(33, Pin.OUT)
-speaker_vcc = None #Pin(2)
+wbutton = Pin(arch.WBUTTON_PIN,Pin.IN,Pin.PULL_UP)
+led=Pin(arch.LED_PIN, Pin.OUT)
+speaker_vcc = None if arch.SPEAKER_PIN==None else Pin(arch.SPEAKER_PIN)
 
-player = audio.AudioPlayer(UART(2,9600), speaker_pin=speaker_vcc, speech_data_folder=3, ignoreerrors=True)
+player = audio.AudioPlayer(UART(arch.AUDIO_PLAYER_UART,9600), speaker_pin=speaker_vcc, speech_data_folder=3, ignoreerrors=True)
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
