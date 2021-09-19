@@ -44,21 +44,16 @@ class AudioPlayer:
         if sleep: self.sleep()
         else: self.wakeup()
         self.pendingtask=None #This is a method called as soon as possible.
-        self._waiting=False
-    
-    def busy(self):
-        return self._waiting
-    
-    def do_task_asap(self,callbale):
-        """ Call the given callable as soon as possible :
-        either immediately or while waiting for a read.
+        self.pttime=0 #Time to execute the task
+    def sched_task(self,taskfn, exectime_ms=0):
+        """ Call the given callable when waiting read:
+        taskfn will be called.
+        if exectime_ms is set, it will run when time.ticks_ms() reaches this value.
         This is mainly here to be able to handle irqs while reading ...
         """
-        if self._waiting:
-            self.pendingtask=callable
-        else:
-            callable()
-    
+        self.pendingtask=taskfn
+        self.pttime=exectime_ms
+        
     def play_track(self, folder=None, track=None, waitmillis=0):
         """ Play given track of given folder, if no folder/track is provided : "next track is played" 
         if waitmillis is set the function blocks until either *playing finishes" or the value waitmillis is reached (put a big value to wait "undefenitely") 
@@ -101,7 +96,7 @@ class AudioPlayer:
             pass
     
     def _perform_pending(self):
-        if self.pendingtask:
+        if self.pendingtask and self.pttime <= time.ticks_ms():
             task=self.pendingtask
             self.pendingtask=None
             task()
@@ -109,7 +104,6 @@ class AudioPlayer:
         return False
     
     def _timeout_read(self,maxtime):
-        self._waiting=True
         try:
             ret = self.player.read(1)
             
@@ -122,7 +116,6 @@ class AudioPlayer:
                 
             return ret[0]
         finally:
-            self._waiting=False
             self._perform_pending()
     
     def _read_response(self, maxtime):

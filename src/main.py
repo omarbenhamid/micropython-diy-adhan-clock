@@ -109,33 +109,51 @@ def irq_stop_adhan(pin):
 currvol=30
 currsidx=None
 VOL_STEP=1
+VOL_STEP_MS=200
 
-def _do_update_volume(_dumb=None):
+def _do_vol_up():
     global currvol, currsidx
-
+    
+    print("Vol UP")
+    currvol=currvol+VOL_STEP
+    
+    if currvol > 30: currvol=30
+    
     sdb.setsvolume(currsidx, currvol)
     player.volume(currvol)
-
+    
+    if volup.value() == 0:
+        player.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
+    
+def _do_vol_dn():
+    global currvol, currsidx
+    
+    print("Vol DN")
+    currvol=currvol-VOL_STEP
+    
+    if currvol < VOL_STEP: currvol=VOL_STEP
+    
+    sdb.setsvolume(currsidx, currvol)
+    player.volume(currvol)
+    
+    if voldn.value() == 0:
+        player.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
 
 def irq_vol_control(pin):
     global currvol
+    
     if pin == volup:
-        currvol += VOL_STEP
-        if currvol > 30: currvol=30
+        op=_do_vol_up
     if pin == voldn:
-        currvol -= VOL_STEP
-        if currvol < 0: currvol=0
-    if player.busy():
-        player.do_task_asap(_do_update_volume)
-    else:
-        micropython.schedule(_do_update_volume,0)
-
+        op=_do_vol_dn
+    player.sched_task(op)
+    
 def _setupvolcontrol(sidx):
     global currvol, currsidx
     if volup:
-        volup.irq(irq_vol_control)
+        volup.irq(irq_vol_control, trigger=Pin.IRQ_FALLING)
     if voldn:
-        voldn.irq(irq_vol_control)
+        voldn.irq(irq_vol_control, trigger=Pin.IRQ_FALLING)
     
     currsidx=sidx
     currvol=sdb.getsvolume(sidx)
