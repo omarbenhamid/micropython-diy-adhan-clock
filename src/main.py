@@ -12,7 +12,6 @@ import sys
 import audio
 import arch
 from arch import VOL_DN_PIN
-from errno import EBUSY
 
 ##### BLE Update
 
