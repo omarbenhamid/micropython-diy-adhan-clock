@@ -11,6 +11,8 @@ import urandom
 import sys
 import audio
 import arch
+from arch import VOL_DN_PIN
+from errno import EBUSY
 
 ##### BLE Update
 
@@ -43,6 +45,12 @@ sdb = SalatDB()
 
 #Wifi setup button
 wbutton = Pin(arch.WBUTTON_PIN,Pin.IN,Pin.PULL_UP)
+if arch.VOL_UP_PIN and arch.VOL_DN_PIN:
+    volup=Pin(arch.VOL_UP_PIN,Pin.IN,Pin.PULL_UP)
+    voldn=Pin(arch.VOL_DN_PIN,Pin.IN,Pin.PULL_UP)
+else:
+    volup=vodnpin=None
+
 led=Pin(arch.LED_PIN, Pin.OUT)
 speaker_vcc = None if arch.SPEAKER_PIN==None else Pin(arch.SPEAKER_PIN)
 
@@ -99,11 +107,47 @@ def irq_stop_adhan(pin):
     _stopadhan = True
     micropython.schedule(_do_stop_adhan,0)
 
+currvol=30
+currsidx=None
+VOL_STEP=1
+
+def _do_update_volume(_dumb=None):
+    global currvol, currsidx
+
+    sdb.setsvolume(currsidx, currvol)
+    player.volume(currvol)
+
+
+def irq_vol_control(pin):
+    global currvol
+    if pin == volup:
+        currvol += VOL_STEP
+        if currvol > 30: currvol=30
+    if pin == voldn:
+        currvol -= VOL_STEP
+        if currvol < 0: currvol=0
+    if player.busy():
+        player.do_task_asap(_do_update_volume)
+    else:
+        micropython.schedule(_do_update_volume,0)
+
+def _setupvolcontrol(sidx):
+    global currvol, currsidx
+    if volup:
+        volup.irq(irq_vol_control)
+    if voldn:
+        voldn.irq(irq_vol_control)
+    
+    currsidx=sidx
+    currvol=sdb.getsvolume(sidx)
+    player.volume(currvol)
+
+
 def alarm(sidx, salm):
     global _stopadhan
     _stopadhan=False
     player.wakeup()
-    player.volume(sdb.getsvolume(sidx))
+    _setupvolcontrol(sidx)
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
     for i in range(1,5):
         led.value(1)
@@ -113,7 +157,9 @@ def alarm(sidx, salm):
         time.sleep_ms(50)
     led.value(1)
     player.say_minutes_to_salat(sidx, salm)
+
     
+
 def adhan(sidx):
     global _stopadhan
     _stopadhan=False
@@ -131,8 +177,7 @@ def adhan(sidx):
     for k in range(1,10): urandom.random()
     
     player.wakeup()
-    player.volume(sdb.getsvolume(sidx))
-    
+    _setupvolcontrol(sidx)
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
             led.value(1)
