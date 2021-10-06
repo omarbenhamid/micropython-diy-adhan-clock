@@ -122,8 +122,10 @@ def _do_vol_up():
     sdb.setsvolume(currsidx, currvol)
     player.volume(currvol)
     
+    sdb.save()
     if volup.value() == 0:
         player.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
+    
     
 def _do_vol_dn():
     global currvol, currsidx
@@ -136,6 +138,7 @@ def _do_vol_dn():
     sdb.setsvolume(currsidx, currvol)
     player.volume(currvol)
     
+    sdb.save()
     if voldn.value() == 0:
         player.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
 
