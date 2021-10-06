@@ -9,7 +9,7 @@ from timesdb import SalatDB, SALATS
 from rtc import localtime, ntpsync
 import urandom
 import sys
-import audio
+import audioplayer
 import arch
 from arch import VOL_DN_PIN
 
@@ -53,7 +53,7 @@ else:
 led=Pin(arch.LED_PIN, Pin.OUT)
 speaker_vcc = None if arch.SPEAKER_PIN==None else Pin(arch.SPEAKER_PIN)
 
-player = audio.AudioPlayer(UART(arch.AUDIO_PLAYER_UART,9600), speaker_pin=speaker_vcc, speech_data_folder=3, ignoreerrors=True)
+player = audioplayer.AudioPlayer(UART(arch.AUDIO_PLAYER_UART,9600), speaker_pin=speaker_vcc, speech_data_folder=3, ignoreerrors=True)
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
@@ -279,7 +279,7 @@ try:
                 timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
             player.wakeup()
             player.volume(30)
-            player.play_track(player.speech_data_folder,audio.MSG_WIFI_SETUP) #"Time now is"        
+            player.play_track(player.speech_data_folder,audioplayer.MSG_WIFI_SETUP) #"Time now is"        
             
     else:
         #elif machine.wake_reason() == machine.TIMER_WAKE:
