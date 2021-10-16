@@ -1,6 +1,5 @@
 import machine
 from machine import Pin, PWM, UART
-import yx5300
 import time
 import micropython
 from micropython import const
@@ -9,9 +8,14 @@ from timesdb import SalatDB, SALATS
 from rtc import localtime, ntpsync
 import urandom
 import sys
-import audioplayer
+import wbuttons
 import arch
-from arch import VOL_DN_PIN
+
+if arch.AUDIO_PLAYER_UART:
+    import yx5300_audioplayer as audioplayer
+else:
+    import adf_audioplayer as audioplayer
+
 
 ##### BLE Update
 
@@ -43,17 +47,12 @@ sdb = SalatDB()
 
 
 #Wifi setup button
-wbutton = Pin(arch.WBUTTON_PIN,Pin.IN,Pin.PULL_UP)
-if arch.VOL_UP_PIN and arch.VOL_DN_PIN:
-    volup=Pin(arch.VOL_UP_PIN,Pin.IN,Pin.PULL_UP)
-    voldn=Pin(arch.VOL_DN_PIN,Pin.IN,Pin.PULL_UP)
-else:
-    volup=vodnpin=None
+wbutton = arch.WBUTTON_PIN
+volup=arch.VOL_UP_PIN 
+voldn=arch.VOL_DN_PIN
+led=arch.LED_PIN
 
-led=Pin(arch.LED_PIN, Pin.OUT)
-speaker_vcc = None if arch.SPEAKER_PIN==None else Pin(arch.SPEAKER_PIN)
-
-player = audioplayer.AudioPlayer(UART(arch.AUDIO_PLAYER_UART,9600), speaker_pin=speaker_vcc, speech_data_folder=3, ignoreerrors=True)
+player = audioplayer.AudioPlayer(ignoreerrors=True)
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
@@ -82,12 +81,12 @@ def sleepuntilnextsalat(raise_exceptions=True):
         
         # Setup wakeup button
         if delta > 24*3600: delta=24*3600
-        esp32.wake_on_ext0(wbutton, esp32.WAKEUP_ALL_LOW)
+        wbuttons.setup_wakeup(wbutton)
         player.sleep()
+        print("Calling : machine.deepsleep(%d)"%(delta*1000))
         machine.deepsleep(delta*1000)
     except Exception as err:
         led.value(1)
-        play_tone(100, 5000)
         with open('exception.log','w') as log:
             sys.print_exception(err,log)
             sys.print_exception(err)
@@ -124,7 +123,7 @@ def _do_vol_up():
     
     sdb.save()
     if volup.value() == 0:
-        player.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
+        wbuttons.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
     
     
 def _do_vol_dn():
@@ -140,7 +139,7 @@ def _do_vol_dn():
     
     sdb.save()
     if voldn.value() == 0:
-        player.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
+        wbuttons.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
 
 def irq_vol_control(pin):
     global currvol
@@ -149,7 +148,7 @@ def irq_vol_control(pin):
         op=_do_vol_up
     if pin == voldn:
         op=_do_vol_dn
-    player.sched_task(op)
+    wbuttons.sched_task(op)
     
 def _setupvolcontrol(sidx):
     global currvol, currsidx
@@ -168,7 +167,7 @@ def alarm(sidx, salm):
     _stopadhan=False
     player.wakeup()
     _setupvolcontrol(sidx)
-    wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+    wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
     for i in range(1,5):
         led.value(1)
         time.sleep_ms(100)
@@ -178,12 +177,13 @@ def alarm(sidx, salm):
     led.value(1)
     player.say_minutes_to_salat(sidx, salm)
 
+def isplayerstopped():
+    return not player.isrunning() 
     
-
 def adhan(sidx):
     global _stopadhan
     _stopadhan=False
-    wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
+    wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
     print('Adhan %s' % SALATS[sidx])
     led.value(1)
     
@@ -222,7 +222,7 @@ def adhan(sidx):
         time.sleep_ms(500)
         player.play_adhan(ALL_ADHAN_FOLDER)
     
-    
+    wbuttons.mainloop(isplayerstopped)
     
         
 timer = machine.Timer(0)
@@ -258,29 +258,29 @@ try:
             print("Saying curren ttime")
             player.say_current_time(h, mi)
             
-            sidx, stime = sdb.findnextsalat()
-            print("Saying next salat at %r" % stime)
-            _,_,_,h,mi,_,_,_ = time.localtime(stime)
-            player.say_salat_at(sidx, h, mi)        
-            
-            sleepuntilnextsalat()
-            #never reaches this line because of deep sleep
+            if not sdb.isempty():
+                sidx, stime = sdb.findnextsalat()
+                print("Saying next salat at %r" % stime)
+                _,_,_,h,mi,_,_,_ = time.localtime(stime)
+                player.say_salat_at(sidx, h, mi)        
+                
+                sleepuntilnextsalat()
+                #never reaches this line because of deep sleep
+        # Config button prcessed or no salat times loaded
+        led.value(1)
+        import wificonfig
+        PWM(led,1)
+        wificonfig.start(sdb)
+        wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING)
+        if sdb.isempty():
+            print('Wifi config started, salat times empty')
         else:
-            # Config button prcessed or no salat times loaded
-            led.value(1)
-            import wificonfig
-            PWM(led,1)
-            wificonfig.start(sdb)
-            wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING,machine.SLEEP|machine.DEEPSLEEP)
-            if sdb.isempty():
-                print('Wifi config started, salat times empty')
-            else:
-                print('Wifi config will auto turnoff after 5 minutes')
-                timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
-            player.wakeup()
-            player.volume(30)
-            player.play_track(player.speech_data_folder,audioplayer.MSG_WIFI_SETUP) #"Time now is"        
-            
+            print('Wifi config will auto turnoff after 5 minutes')
+            timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
+        player.wakeup()
+        player.volume(30)
+        player.play_track(audioplayer.SPEECH_DATA_FOLDER,audioplayer.MSG_WIFI_SETUP, sync=False) #"Time now is"        
+        wbuttons.mainloop()
     else:
         #elif machine.wake_reason() == machine.TIMER_WAKE:
         try:
