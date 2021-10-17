@@ -3,6 +3,7 @@ Created on 29 sept. 2019
 Not forced to load this : just tools for debu
 @author: omar
 '''
+from rtc import localtime
 
 def fakeadhan(sidx=3, delaymintues=1, db=None):
     global sdb

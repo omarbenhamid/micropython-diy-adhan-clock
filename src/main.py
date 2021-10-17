@@ -1,3 +1,7 @@
+import arch
+#Turn on led asap
+arch.LED_PIN.value(1)
+
 import machine
 from machine import Pin, PWM, UART
 import time
@@ -9,7 +13,7 @@ from rtc import localtime, ntpsync
 import urandom
 import sys
 import wbuttons
-import arch
+
 
 if arch.AUDIO_PLAYER_UART:
     import yx5300_audioplayer as audioplayer
@@ -56,6 +60,8 @@ player = audioplayer.AudioPlayer(ignoreerrors=True)
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
+
+BOOT_LATENCY_SECS=const(30)
 
 def sleepuntilnextsalat(raise_exceptions=True):
     """ returns idx when next salat time arrives """
@@ -206,9 +212,7 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
         led.value(1)
-        player.play_adhan(FAJR_ADHAN_FOLDER)
-        
-    
+        player.play_adhan_async(FAJR_ADHAN_FOLDER)
     else:
         for i in range(0, sidx):
             led.value(1)
@@ -220,15 +224,26 @@ def adhan(sidx):
         _,_,_,h,mi,_,_,_ = localtime()
         player.say_current_time(h, mi)
         time.sleep_ms(500)
-        player.play_adhan(ALL_ADHAN_FOLDER)
+        player.play_adhan_async(ALL_ADHAN_FOLDER)
     
     wbuttons.mainloop(isplayerstopped)
     
-        
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):
     micropython.schedule(lambda x: sleepuntilnextsalat(False),0)
-    
+
+def match_time(tgttime, currtime):
+    """ Check wether the given time is matched, taking into account BOOT_LATENCY
+        If a match is found, the return will be delayed in order to ensure it will not match
+        again
+    """
+    if tgttime <= currtime and (currtime - tgttime) < BOOT_LATENCY_SECS: 
+        print("Time matching %d and %d" % (tgttime,currtime))
+        time.sleep(BOOT_LATENCY_SECS-(currtime-tgttime))
+        return True
+    print("Time notmatching %d and %d" % (tgttime,currtime))
+    return False
+                
 
 _last_btn_press = 0
 def on_wifi_btn(pin):
@@ -290,14 +305,14 @@ try:
         sidx, stime = sdb.findnextsalat()
         print("Next Salat is", sidx, stime)
         currtime = time.mktime(localtime())
-        if stime <= currtime and (currtime - stime) < 10:
+        if match_time(stime,currtime):
             adhan(sidx)
         #IF alamr make alarm
         
         salm = sdb.getsalarmdelay(sidx)
         if salm != None:
             almtm = stime - (60 * salm)
-            if almtm <= currtime and (currtime - almtm) < 10: 
+            if match_time(almtm,currtime):
                 alarm(sidx, salm)
         
         

@@ -48,6 +48,15 @@ p.vol(50)
 p.play('file://sdcard/01/003.mp3')
 ```
 
+
+```
+import audio
+
+p=audio.player(None)
+p.vol(50)
+p.play('https://download.media.islamway.net/lessons/18998/Elmo2tamr_1.mp3')
+```
+
 # Wake on buttons
 ```
 import esp32
