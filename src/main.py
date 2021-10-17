@@ -193,8 +193,8 @@ def adhan(sidx):
         player.say_salat_name(1)
         return
     
-    urandom.seed(time.mktime(localtime()))
-    # RNG needs some heetup to get a good enough quality
+    urandom.seed(int(time.mktime(localtime())/60))
+    # RNG needs some heat up to get a good enough quality
     for k in range(1,10): urandom.random()
     
     player.wakeup()
