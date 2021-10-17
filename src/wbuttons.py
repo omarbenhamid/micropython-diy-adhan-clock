@@ -6,19 +6,38 @@ class ADCButton:
     def __init__(self, minval, maxval):
         self.min=minval
         self.max=maxval
+        self._irqcallback=None
+        self._lastpressed=None #Up is not pressed
         
     def match(self, reading):
         return reading > self.min and reading <= self.max
+    
+    def falling(self, reading): #= pressing
+        pressed=self.match(reading)
+        if self._lastpressed == None:
+            self._lastpressed = pressed
+            return False
+        if self._lastpressed:
+            self._lastpressed=pressed
+            return False
+        else:
+            self._lastpressed=pressed
+            return pressed #Was not pressed, return true if pressed false if not.
     
     def value(self):
         # To mimic pin buttons: 0 => Pressed, 1 => released
         if self.match(get_adc().read()): return 0
         else: return 1
         
+    def triggerirq(self, pin):
+        if self._irqcallback:
+            self._irqcallback(pin)
+        
     def irq(self, callback, trigger=Pin.IRQ_FALLING):
         if trigger != Pin.IRQ_FALLING: 
             raise Exception("Unsupported event registration for ADC Button")
-        add_listen(self, callback)
+        self._irqcallback=callback
+        add_listen(self, self.triggerirq)
 
 _adc=None
 def get_adc():
@@ -57,7 +76,7 @@ def setup_wakeup(pin_or_adc):
 
 pendingtask=pttime=None
 
-def sched_task(self,taskfn, exectime_ms=0):
+def sched_task(taskfn, exectime_ms=0):
     global pendingtask, pttime
     """ Call the given callable when waiting read:
     taskfn will be called.
@@ -87,7 +106,7 @@ def mainloop(stopcond=getfalse):
     while runloop and not stopcond():
         r=adc.read()
         for btn, cb in __adc_listeners:
-            if btn.match(r):
+            if btn.falling(r):
                 try: 
                     cb(btn)
                 except:

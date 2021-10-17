@@ -52,6 +52,8 @@ def salarmkey(sidx):
 
 LAST_ALARM_KEY="salarm:99"
 
+
+SPEECH_VOL_SIDX=const(99)
 def svolumekey(sidx):
     return "svol:%02d" % sidx
 LAST_SVOL_KEY="svol:99"

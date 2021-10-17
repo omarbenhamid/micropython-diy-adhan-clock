@@ -8,7 +8,7 @@ import time
 import micropython
 from micropython import const
 import esp32
-from timesdb import SalatDB, SALATS
+from timesdb import SalatDB, SALATS, SPEECH_VOL_SIDX
 from rtc import localtime, ntpsync
 import urandom
 import sys
@@ -119,7 +119,6 @@ VOL_STEP_MS=200
 def _do_vol_up():
     global currvol, currsidx
     
-    print("Vol UP")
     currvol=currvol+VOL_STEP
     
     if currvol > 30: currvol=30
@@ -135,7 +134,6 @@ def _do_vol_up():
 def _do_vol_dn():
     global currvol, currsidx
     
-    print("Vol DN")
     currvol=currvol-VOL_STEP
     
     if currvol < VOL_STEP: currvol=VOL_STEP
@@ -156,7 +154,7 @@ def irq_vol_control(pin):
         op=_do_vol_dn
     wbuttons.sched_task(op)
     
-def _setupvolcontrol(sidx):
+def _setupvolcontrol(sidx=SPEECH_VOL_SIDX):
     global currvol, currsidx
     if volup:
         volup.irq(irq_vol_control, trigger=Pin.IRQ_FALLING)
@@ -194,7 +192,7 @@ def adhan(sidx):
     led.value(1)
     
     if sidx == 1: #chorok : beep only
-        player.volume(30)
+        _setupvolcontrol(sidx)
         player.say_salat_name(1)
         return
     
@@ -264,12 +262,13 @@ def sync_times_mawaqit():
 
 try:    
     if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
-        if not wbutton.value(): #Button still pressed (0 = pressed !)
+        if wbutton.value(): 
+            #Button not pressed (0 = pressed !) : say time and exit
             led.value(1)
             time.sleep_ms(500)
             _,_,_,h,mi,_,_,_ = localtime()
             player.wakeup()
-            player.volume(30)
+            _setupvolcontrol()
             print("Saying curren ttime")
             player.say_current_time(h, mi)
             
@@ -281,7 +280,7 @@ try:
                 
                 sleepuntilnextsalat()
                 #never reaches this line because of deep sleep
-        # Config button prcessed or no salat times loaded
+        # Config button still pressed or no salat times loaded
         led.value(1)
         import wificonfig
         PWM(led,1)
@@ -293,11 +292,12 @@ try:
             print('Wifi config will auto turnoff after 5 minutes')
             timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
         player.wakeup()
-        player.volume(30)
+        _setupvolcontrol()
         player.play_track(audioplayer.SPEECH_DATA_FOLDER,audioplayer.MSG_WIFI_SETUP, sync=False) #"Time now is"        
         wbuttons.mainloop()
     else:
         #elif machine.wake_reason() == machine.TIMER_WAKE:
+        #Verify adhan
         try:
             ntpsync()
         except:
