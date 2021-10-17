@@ -11,6 +11,7 @@ import os
 from machine import Pin
 from micropython import const
 import audio
+import wbuttons
 
 def tohexstring(bytes):
     return " ".join('%X' % b for b in bytes)
@@ -61,10 +62,10 @@ class AudioPlayer:
             else: raise Exception("No such track folder %d track %d" % (folder,track))
             
         print("playing uri %s , sync=%r" % (uri, sync))
+        self.player.play(uri)
         if sync:
-            self.player.play(uri, sync=True)
-        else:
-            self.player.play(uri)
+            wbuttons.mainloop(self.isstopped)
+            
         
     def stop(self):
         self.player.stop()
@@ -107,10 +108,13 @@ class AudioPlayer:
         self.play_track(SPEECH_DATA_FOLDER, SALAT_NAMES_TRACKS_FIRST+sidx, sync=True)
         self.play_track(SPEECH_DATA_FOLDER, MINUTES_TRACKS_FIRST+salm, sync=True)
         
-    def play_adhan_async(self, folder):
-        self.play_track(folder, urandom.randrange(1,self.query_track_count(folder)+1))
-    
+    def play_adhan(self, folder):
+        self.play_track(folder, urandom.randrange(1,self.query_track_count(folder)+1), 
+                        sync=True)
     
     def isrunning(self):
         return self.player.get_state()["status"] == audio.player.STATUS_RUNNING
-        
+    
+    def isstopped(self):
+        return self.player.get_state()["status"] != audio.player.STATUS_RUNNING
+    

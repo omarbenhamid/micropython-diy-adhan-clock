@@ -179,10 +179,7 @@ def alarm(sidx, salm):
         if _stopadhan: return
         time.sleep_ms(50)
     led.value(1)
-    player.say_minutes_to_salat(sidx, salm)
-
-def isplayerstopped():
-    return not player.isrunning() 
+    player.say_minutes_to_salat(sidx, salm) 
     
 def adhan(sidx):
     global _stopadhan
@@ -210,7 +207,7 @@ def adhan(sidx):
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
         led.value(1)
-        player.play_adhan_async(FAJR_ADHAN_FOLDER)
+        player.play_adhan(FAJR_ADHAN_FOLDER)
     else:
         for i in range(0, sidx):
             led.value(1)
@@ -222,9 +219,7 @@ def adhan(sidx):
         _,_,_,h,mi,_,_,_ = localtime()
         player.say_current_time(h, mi)
         time.sleep_ms(500)
-        player.play_adhan_async(ALL_ADHAN_FOLDER)
-    
-    wbuttons.mainloop(isplayerstopped)
+        player.play_adhan(ALL_ADHAN_FOLDER)
     
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):
@@ -270,6 +265,9 @@ try:
             player.wakeup()
             _setupvolcontrol()
             print("Saying curren ttime")
+            #Stop when clicking
+            wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
+            
             player.say_current_time(h, mi)
             
             if not sdb.isempty():
