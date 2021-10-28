@@ -1,6 +1,8 @@
-import time
 from machine import ADC, Pin
 import esp32
+import taskloop
+import sys
+
 
 class ADCButton:
     def __init__(self, minval, maxval):
@@ -74,48 +76,15 @@ def setup_wakeup(pin_or_adc):
     else:
         raise Exception("Unable to handle this type of buttons : %r" % pin_or_adc)
 
-pendingtask=pttime=None
 
-def sched_task(taskfn, exectime_ms=0):
-    global pendingtask, pttime
-    """ Call the given callable when waiting read:
-    taskfn will be called.
-    if exectime_ms is set, it will run when time.ticks_ms() reaches this value.
-    This is mainly here to be able to handle irqs while reading ...
-    """
-    pendingtask=taskfn
-    pttime=exectime_ms
-    
-def _perform_pending():
-    global pendingtask, pttime
-    if pendingtask and pttime <= time.ticks_ms():
-        task=pendingtask
-        pendingtask=None
-        task()
-        return True
-    return False
+def check_adc_listeners():
+    global __adc_listeners
+    r=get_adc().read()
+    for btn, cb in __adc_listeners:
+        if btn.falling(r):
+            try: 
+                cb(btn)
+            except Exception as err:
+                sys.print_exception(err)
 
-def getfalse():
-    return False
-
-def mainloop(stopcond=getfalse):
-    global runloop
-    runloop=True
-    adc=get_adc()
-    print("Running mainloop, use Ctrl+C to get REPL")
-    while runloop and not stopcond():
-        r=adc.read()
-        for btn, cb in __adc_listeners:
-            if btn.falling(r):
-                try: 
-                    cb(btn)
-                except:
-                    pass
-        if not _perform_pending():
-            time.sleep_ms(20)
-    _perform_pending()
-        
-            
-def stoploop():
-    global runloop
-    runloop=False
+taskloop.sched_task(check_adc_listeners, repeat_ms=20)

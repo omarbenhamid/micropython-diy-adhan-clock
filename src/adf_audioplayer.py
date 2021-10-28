@@ -11,7 +11,7 @@ import os
 from machine import Pin
 from micropython import const
 import audio
-import wbuttons
+import taskloop
 
 def tohexstring(bytes):
     return " ".join('%X' % b for b in bytes)
@@ -64,7 +64,7 @@ class AudioPlayer:
         print("playing uri %s , sync=%r" % (uri, sync))
         self.player.play(uri)
         if sync:
-            wbuttons.mainloop(self.isstopped)
+            taskloop.mainloop(self.isstopped)
             
         
     def stop(self):

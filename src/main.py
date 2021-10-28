@@ -13,6 +13,7 @@ from rtc import localtime, ntpsync
 import urandom
 import sys
 import wbuttons
+import taskloop
 
 
 if arch.AUDIO_PLAYER_UART:
@@ -128,7 +129,7 @@ def _do_vol_up():
     
     sdb.save()
     if volup.value() == 0:
-        wbuttons.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
+        taskloop.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
     
     
 def _do_vol_dn():
@@ -143,7 +144,7 @@ def _do_vol_dn():
     
     sdb.save()
     if voldn.value() == 0:
-        wbuttons.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
+        taskloop.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
 
 def irq_vol_control(pin):
     global currvol
@@ -152,7 +153,7 @@ def irq_vol_control(pin):
         op=_do_vol_up
     if pin == voldn:
         op=_do_vol_dn
-    wbuttons.sched_task(op)
+    taskloop.sched_task(op)
     
 def _setupvolcontrol(sidx=SPEECH_VOL_SIDX):
     global currvol, currsidx
@@ -292,7 +293,7 @@ try:
         player.wakeup()
         _setupvolcontrol()
         player.play_track(audioplayer.SPEECH_DATA_FOLDER,audioplayer.MSG_WIFI_SETUP, sync=False) #"Time now is"        
-        wbuttons.mainloop()
+        taskloop.mainloop()
     else:
         #elif machine.wake_reason() == machine.TIMER_WAKE:
         #Verify adhan
