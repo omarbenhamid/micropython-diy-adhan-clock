@@ -30,7 +30,7 @@ import wbuttons
 
 LED_PIN=Pin(27, Pin.OUT, Pin.PULL_UP)
 ADC_KEYS_PIN=const(39)
-WBUTTON_PIN=wbuttons.ADCButton(1107,1581)
+WBUTTON_PIN=wbuttons.ADCButton(1581,2000)
 VOL_UP_PIN=wbuttons.ADCButton(606, 1107)
 VOL_DN_PIN=wbuttons.ADCButton(0, 606)
 AUDIO_PLAYER_UART=None
