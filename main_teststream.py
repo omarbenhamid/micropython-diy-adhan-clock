@@ -17,6 +17,10 @@ livestream.LS_CB_TRIGGER_DELAY_MS=1000
 def live_status_cb(available):
     arch.LED_PIN.value(available)
     print("Stream available : %r" % available)
+    if available:
+        l.playnow()
+    elif l.isplaying():
+        l.stop()
 
 l=livestream.LiveStream(STREAMURL, live_status_cb)
 
