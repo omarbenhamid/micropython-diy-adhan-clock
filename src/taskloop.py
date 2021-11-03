@@ -21,9 +21,9 @@ def sched_task(taskfn, exectime_ms=0, repeat_ms=0):
 
 def unsched_task(taskfn, exectime_ms=None, repeat_ms=None):
     global tasks
-    tasks=list(pt for pt in tasks if 
-        pt[0] != taskfn or not (exectime_ms != None and pt[1] == exectime_ms) \
-        or not (repeat_ms != None and pt[2] == repeat_ms))
+    tasks=[pt for pt in tasks if 
+        not (pt[0] == taskfn and (exectime_ms == None or exectime_ms == pt[1]) \
+        and (repeat_ms == None or repeat_ms == pt[2]))]
     
     
 def _perform_tasks(etick=None, clean=True):
@@ -46,13 +46,14 @@ def getfalse():
 
 
 
-def mainloop(stopcond=getfalse):
+def mainloop(stopcond=getfalse, until_ms=None):
     global runloop
     print("Running mainloop, use Ctrl+C to get REPL")
     
     runloop=True
     while runloop and not stopcond():
         etick=time.ticks_ms()
+        if until_ms and etick > until_ms: break
         _perform_tasks(etick, False)
         slot=MIN_LOOP_TIME_MS-(time.ticks_ms()-etick)
         if slot > 0:

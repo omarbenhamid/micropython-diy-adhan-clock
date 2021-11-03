@@ -15,9 +15,7 @@ import arch
 import wifi
 import config
 
-wlan = None
 wlan = network.WLAN(network.AP_IF)
-wlan.config(essid="MyFajrClock")
 
 dns = None
 web = None
@@ -55,6 +53,7 @@ def getStatus(cli, resp, message=""):
             currentTzDelta=str(ctz),
             mawaqitStatus = mawaqitStatus,
             message=message,
+            perfmode='awake' if config.get('alwaysAwake', True) else 'eco',
             **args
         )
     )
@@ -90,6 +89,23 @@ def updateConfig(cli, resp):
             sdb.setsalarmdelay(sidx, int(data['salat%dalm'%sidx]))
             sdb.setsvolume(sidx, int(data['salat%dvol'%sidx]))
         sdb.save()
+    if 'updperfmode' in data:
+        c=config.get()
+        if data['perfmode']=='eco':
+            c['alwaysAwake']=False
+        else:
+            c['alwaysAwake']=True
+        config.update(c)
+        
+    #if 'livestream' in data:
+    #    c=config.get()
+    #    c['livestream']={
+    #        'enabled': ?,
+    #        'url':data['livestreamurl'],
+    #        'liveAdhanDelaySecs': -1 disabled / autostart livestream after x,
+    #}
+    #    config.update(c)
+        
     if 'syncmawaqit' in data:
         try:
             import mawaqit
@@ -159,6 +175,7 @@ def start(_sdb):
     sdb = _sdb
     ## Starting Wifi Access Poijnt
     wlan.active(1)
+    wlan.config(essid="MyFajrClock")
     ## Setting Up Capitve portal
     ip=wlan.ifconfig()[0]
     dns = MicroDNSSrv()

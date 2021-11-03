@@ -14,6 +14,7 @@ import urandom
 import sys
 import wbuttons
 import taskloop
+import config
 
 
 if arch.AUDIO_PLAYER_UART:
@@ -50,7 +51,6 @@ tx.write('foo')
 
 sdb = SalatDB()
 
-
 #Wifi setup button
 wbutton = arch.WBUTTON_PIN
 volup=arch.VOL_UP_PIN 
@@ -64,9 +64,8 @@ ALL_ADHAN_FOLDER=const(2)
 
 BOOT_LATENCY_SECS=const(30)
 
-def sleepuntilnextsalat(raise_exceptions=True):
-    """ returns idx when next salat time arrives """
-    try:
+
+def __next_salat_delta():
         if time.time() < 100000: #Still in year 2000 !
             try:
                 ntpsync()
@@ -85,13 +84,21 @@ def sleepuntilnextsalat(raise_exceptions=True):
             delta = stime-time.mktime(localtime())
             print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
         
-        
-        # Setup wakeup button
         if delta > 24*3600: delta=24*3600
-        wbuttons.setup_wakeup(wbutton)
+        return delta
+    
+def sleepuntilnextsalat(raise_exceptions=True):
+    """ returns idx when next salat time arrives """
+    try:
         player.sleep()
-        print("Calling : machine.deepsleep(%d)"%(delta*1000))
-        machine.deepsleep(delta*1000)
+        if config.get("alwaysAwake",True): #re read it live, in case config changes ...
+            machine.deepsleep(1) #Reboot
+        else:
+            delta=__next_salat_delta()
+            # Setup wakeup button
+            wbuttons.setup_wakeup(wbutton)
+            print("Calling : machine.deepsleep(%d)"%(delta*1000))
+            machine.deepsleep(delta*1000+1)
     except Exception as err:
         led.value(1)
         with open('exception.log','w') as log:
@@ -256,29 +263,69 @@ def sync_times_mawaqit():
     import mawaqit
     mawaqit.dosync(sdb)
 
-try:    
-    if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
-        if wbutton.value(): 
-            #Button not pressed (0 = pressed !) : say time and exit
-            led.value(1)
-            time.sleep_ms(500)
-            _,_,_,h,mi,_,_,_ = localtime()
-            player.wakeup()
-            _setupvolcontrol()
-            print("Saying curren ttime")
-            #Stop when clicking
-            wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
+
+STM_ADHAN=const(0)
+STM_TIME=const(1)
+STM_CONFIG=const(2)
+
+LONGPRESS_DELAY_MS=500
+
+startmode=None
+
+try:
+    if config.get("alwaysAwake",True):
+        #TODO: here add breathing led tasks to taskloop
+        led.off()
+        nextsalat=time.ticks_ms()+__next_salat_delta()*1000
+        wbutton.irq(lambda pin: taskloop.stoploop())
+        taskloop.mainloop(until_ms=nextsalat)
+        led.on()
+        wbutton.irq(None)
+        if time.ticks_ms() > nextsalat:
+            startmode=STM_ADHAN
+        else:
+            time.sleep_ms(LONGPRESS_DELAY_MS)
+            if wbutton.value() == 0:
+                startmode=STM_CONFIG
+            else:
+                #TODO: add livestream managemlent : 
+                # if livestream is availale not playing play livestream and enter taskloop again.
+                # if livestrime playing : stop livestream and loop again
+                # => To "loop again": have a wile startmode=None and keep it None ...
+                startmode=STM_TIME
+    else:
+        if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
+            if wbutton.value(): 
+                startmode=STM_TIME
+            else:
+                startmode=STM_CONFIG
+        else:
+            startmode=STM_ADHAN
+    
+    if startmode==STM_TIME:
+        #Button not pressed (0 = pressed !) : say time and exit
+        led.value(1)
+        time.sleep_ms(500)
+        _,_,_,h,mi,_,_,_ = localtime()
+        player.wakeup()
+        _setupvolcontrol()
+        print("Saying curren ttime")
+        #Stop when clicking
+        wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
+        
+        player.say_current_time(h, mi)
+        
+        if not sdb.isempty():
+            sidx, stime = sdb.findnextsalat()
+            print("Saying next salat at %r" % stime)
+            _,_,_,h,mi,_,_,_ = time.localtime(stime)
+            player.say_salat_at(sidx, h, mi)        
             
-            player.say_current_time(h, mi)
+            sleepuntilnextsalat()
+        else:
+            startmode=STM_CONFIG
             
-            if not sdb.isempty():
-                sidx, stime = sdb.findnextsalat()
-                print("Saying next salat at %r" % stime)
-                _,_,_,h,mi,_,_,_ = time.localtime(stime)
-                player.say_salat_at(sidx, h, mi)        
-                
-                sleepuntilnextsalat()
-                #never reaches this line because of deep sleep
+    if startmode==STM_CONFIG:
         # Config button still pressed or no salat times loaded
         led.value(1)
         import wificonfig
@@ -294,8 +341,8 @@ try:
         _setupvolcontrol()
         player.play_track(audioplayer.SPEECH_DATA_FOLDER,audioplayer.MSG_WIFI_SETUP, sync=False) #"Time now is"        
         taskloop.mainloop()
-    else:
-        #elif machine.wake_reason() == machine.TIMER_WAKE:
+    
+    if startmode==STM_ADHAN:
         #Verify adhan
         try:
             ntpsync()
@@ -316,6 +363,7 @@ try:
         
         
         sleepuntilnextsalat() 
+    
 except Exception as err:
     led.value(1)
     with open('exception.log','w') as log:

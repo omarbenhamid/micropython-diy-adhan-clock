@@ -63,6 +63,19 @@ Current Time is: {currentTime}
 	<input type="submit" name="updatenotif" value="Update alarms"/>
 </form>
 
+<h2>Performance Mode</h2>
+<form method="POST">
+    <p> Current mode : {perfmode} </p>
+    <p>
+       <label for="perfmode">Performacne model</label>&nbsp;<select name="perfmode">
+        <option value="awake">Awake : optimal for interactivity and fast reaction </option>
+        <option value="eco">Eco : offline, slow reaction time but optimized for battery</option>
+       </select>
+    </p>
+    
+    <input type="submit" name="updperfmode" value="Update"/>
+</form>
+
 <h2> Update times with CSV</h2>
 <p>
 Line format : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM
