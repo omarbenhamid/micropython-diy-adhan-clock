@@ -9,6 +9,8 @@ from micropython import const
 import os
 import config
 
+TIMESDB_LOC="/sdcard/times"
+
 SALATS=['Fajr','Chorok', 'Dohr', 'Asr', 'Maghrib', 'Ishaa']
 MONTH31=[1,3,5,7,8,10,12]
 
@@ -46,14 +48,14 @@ def svolumekey(sidx):
 ### Salat Times Database
         
 class SalatDB:
-    def __init__(self, dbdir="salatimes"):
+    def __init__(self, dbdir=TIMESDB_LOC):
         self.dbdir = dbdir if not dbdir.endswith('/') else dbdir[:-1]
         
     
     def isempty(self):
         try:
             files=os.listdir(self.dbdir)
-            return len(files) != 0
+            return len(files) == 0
         except StopIteration:
             return True
         
