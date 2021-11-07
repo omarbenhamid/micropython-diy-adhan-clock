@@ -1,16 +1,19 @@
 import json
 import sys
 
+CONFIG_LOC="/sdcard/config.json"
+
 config={}
+
 def reload():
     global config
     try:
-        with open('config.json','r') as f:
+        with open(CONFIG_LOC,'r') as f:
             config = json.load(f)
     except Exception as err:
         config = {}
         sys.print_exception(err)
-        print("Failed to load config.json, ignored")
+        print("Failed to load %s, ignored" % CONFIG_LOC)
 
 def get(key=None, default=None):
     global config
@@ -41,7 +44,7 @@ def set(key, value, save=False):
         
 
 def update(newjson):
-    with open('config.json','w') as cf:
+    with open(CONFIG_LOC,'w') as cf:
         json.dump(newjson,cf)
     reload()
 

@@ -12,7 +12,6 @@ from timesdb import SalatDB, SALATS, SPEECH_VOL_SIDX
 from rtc import localtime, ntpsync
 import urandom
 import sys
-import wbuttons
 import taskloop
 import config
 
@@ -55,7 +54,6 @@ sdb = SalatDB()
 wbutton = arch.WBUTTON_PIN
 volup=arch.VOL_UP_PIN 
 voldn=arch.VOL_DN_PIN
-led=arch.LED_PIN
 
 player = audioplayer.AudioPlayer(ignoreerrors=True)
 
@@ -64,6 +62,26 @@ ALL_ADHAN_FOLDER=const(2)
 
 BOOT_LATENCY_SECS=const(30)
 
+def setup_wakeup(pin_or_adc):
+    if arch.ADC_KEYS_PIN:
+        import wbuttons
+        if isinstance(pin_or_adc, wbuttons.ADCButton):
+            esp32.wake_on_ext0(Pin(arch.ADC_KEYS_PIN,Pin.IN,Pin.PULL_UP), esp32.WAKEUP_ALL_LOW)
+            return
+    if isinstance(pin_or_adc, Pin):
+        esp32.wake_on_ext0(pin_or_adc, esp32.WAKEUP_ALL_LOW)
+        return
+    
+    raise Exception("Unable to handle this type of buttons : %r" % pin_or_adc)
+
+
+def led_on():
+    if arch.LED_PIN:
+        arch.LED_PIN.value(arch.LED_ON_VALUE)
+        
+def led_off():
+    if arch.LED_PIN:
+        arch.LED_PIN.value(not arch.LED_ON_VALUE)
 
 def __next_salat_delta():
         if time.time() < 100000: #Still in year 2000 !
@@ -96,11 +114,11 @@ def sleepuntilnextsalat(raise_exceptions=True):
         else:
             delta=__next_salat_delta()
             # Setup wakeup button
-            wbuttons.setup_wakeup(wbutton)
+            setup_wakeup(wbutton)
             print("Calling : machine.deepsleep(%d)"%(delta*1000))
             machine.deepsleep(delta*1000+1)
     except Exception as err:
-        led.value(1)
+        led_on()
         with open('exception.log','w') as log:
             sys.print_exception(err,log)
             sys.print_exception(err)
@@ -181,12 +199,12 @@ def alarm(sidx, salm):
     _setupvolcontrol(sidx)
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
     for i in range(1,5):
-        led.value(1)
+        led_on()
         time.sleep_ms(100)
-        led.value(0)
+        led_off()
         if _stopadhan: return
         time.sleep_ms(50)
-    led.value(1)
+    led_on()
     player.say_minutes_to_salat(sidx, salm) 
     
 def adhan(sidx):
@@ -194,7 +212,7 @@ def adhan(sidx):
     _stopadhan=False
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
     print('Adhan %s' % SALATS[sidx])
-    led.value(1)
+    led_on()
     
     if sidx == 1: #chorok : beep only
         _setupvolcontrol(sidx)
@@ -209,21 +227,21 @@ def adhan(sidx):
     _setupvolcontrol(sidx)
     if sidx == 0: #Fajr special ringing
         for i in range(1,17):
-            led.value(1)
+            led_on()
             time.sleep_ms(100)
-            led.value(0)
+            led_off()
             if _stopadhan: return
             time.sleep_ms(300 if i % 4 == 0 else 50)
-        led.value(1)
+        led_on()
         player.play_adhan(FAJR_ADHAN_FOLDER)
     else:
         for i in range(0, sidx):
-            led.value(1)
+            led_on()
             time.sleep_ms(100)
-            led.value(0)
+            led_off()
             if _stopadhan: return
             time.sleep_ms(500)
-        led.value(1)
+        led_on()
         _,_,_,h,mi,_,_,_ = localtime()
         player.say_current_time(h, mi)
         time.sleep_ms(500)
@@ -275,11 +293,11 @@ startmode=None
 try:
     if config.get("alwaysAwake",True):
         #TODO: here add breathing led tasks to taskloop
-        led.off()
+        led_off()
         nextsalat=time.ticks_ms()+__next_salat_delta()*1000
         wbutton.irq(lambda pin: taskloop.stoploop())
         taskloop.mainloop(until_ms=nextsalat)
-        led.on()
+        led_on()
         wbutton.irq(None)
         if time.ticks_ms() > nextsalat:
             startmode=STM_ADHAN
@@ -304,7 +322,7 @@ try:
     
     if startmode==STM_TIME:
         #Button not pressed (0 = pressed !) : say time and exit
-        led.value(1)
+        led_on()
         time.sleep_ms(500)
         _,_,_,h,mi,_,_,_ = localtime()
         player.wakeup()
@@ -327,9 +345,9 @@ try:
             
     if startmode==STM_CONFIG:
         # Config button still pressed or no salat times loaded
-        led.value(1)
+        led_on()
         import wificonfig
-        PWM(led,1)
+        PWM(arch.LED_PIN,1)
         wificonfig.start(sdb)
         wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING)
         if sdb.isempty():
@@ -365,7 +383,7 @@ try:
         sleepuntilnextsalat() 
     
 except Exception as err:
-    led.value(1)
+    led_on()
     with open('exception.log','w') as log:
         sys.print_exception(err,log)
         sys.print_exception(err)

@@ -26,8 +26,8 @@ MSG_WIFI_SETUP=const(2)
 MSG_AT=const(3)
 
 SPEECH_DATA_FOLDER=3
-AUDIO_URI_FMT="file://sdcard/%(folder)02d/%(track)03d"
-AUDIO_DIR_FMT="/sdcard/%(folder)02d"
+AUDIO_DIR_FMT="/sdcard/audiodata/%(folder)02d"
+AUDIO_URI_FMT="file:/"+AUDIO_DIR_FMT+"/%(track)03d"
 AUDIO_SUPPORTED_EXTS=[".wav",".mp3",".ogg"]
 
 AUDIO_MAX_VOLUME=80

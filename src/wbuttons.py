@@ -67,15 +67,6 @@ def add_listen(pin_or_adc, callback):
     else:
         raise Exception("Unable to handle this type of buttons : %r" % pin_or_adc)
 
-def setup_wakeup(pin_or_adc):
-    if isinstance(pin_or_adc, ADCButton):
-        import arch
-        esp32.wake_on_ext0(Pin(arch.ADC_KEYS_PIN,Pin.IN,Pin.PULL_UP), esp32.WAKEUP_ALL_LOW)
-    elif isinstance(pin_or_adc, Pin):
-        esp32.wake_on_ext0(pin_or_adc, esp32.WAKEUP_ALL_LOW)
-    else:
-        raise Exception("Unable to handle this type of buttons : %r" % pin_or_adc)
-
 
 def check_adc_listeners():
     global __adc_listeners
@@ -86,5 +77,6 @@ def check_adc_listeners():
                 cb(btn)
             except Exception as err:
                 sys.print_exception(err)
+
 
 taskloop.sched_task(check_adc_listeners, repeat_ms=20)
