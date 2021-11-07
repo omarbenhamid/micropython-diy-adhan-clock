@@ -17,11 +17,36 @@ def get(key=None, default=None):
     if key == None: 
         return config
     
-    return config.get(key, default)
+    c=config
+    chain=key.split(".")
+    for k in chain:
+        if k in c: c=c[k]
+        else: return default
+        
+    return c
+
+def set(key, value, save=False):
+    global config
+    c=config
+    chain=key.split(".")
+    lastk=chain.pop()
+    for k in chain:
+        if k in c: c=c[k]
+        else:
+            c[k]={}
+            c=c[k]
+    c[lastk]=value
+    if save:
+        self.update(config)
+        
 
 def update(newjson):
     with open('config.json','w') as cf:
         json.dump(newjson,cf)
     reload()
+
+def save():
+    global config
+    update(config)
     
 reload()

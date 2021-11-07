@@ -3,12 +3,11 @@ Created on 21 sept. 2019
 
 @author: omar
 '''
-import btree
 import time
 from rtc import localtime
 from micropython import const
-import gc
 import os
+import config
 
 SALATS=['Fajr','Chorok', 'Dohr', 'Asr', 'Maghrib', 'Ishaa']
 MONTH31=[1,3,5,7,8,10,12]
@@ -34,68 +33,59 @@ def nextday(self, year, month, day):
     
     return (year, month, day)
 
-def minuteofyear(month,day, h, m):
-    d = 0
-    for i in range(1, month):
-        d += dom(i)
-    d += day - 1
-    return (d * 24 + h) * 60 + m
-
-
-def stimekey(month, day, h, m):
-    return "%06d" % minuteofyear(month, day, h, m)
-
-LAST_SALAT_KEY="999999"
-
 def salarmkey(sidx):
-    return "salarm:%02d" % sidx
+    return "salat.%02d.alarmDelayMinutes" % sidx
 
-LAST_ALARM_KEY="salarm:99"
 
 
 SPEECH_VOL_SIDX=const(99)
+
 def svolumekey(sidx):
-    return "svol:%02d" % sidx
-LAST_SVOL_KEY="svol:99"
+    return "salat.%02d.volumeLevel" % sidx
 
 ### Salat Times Database
         
 class SalatDB:
-    def __init__(self, dbfile="salatimes.db"):
-        self.db = None
-        self.dbfile = dbfile
-        self.reopen()
+    def __init__(self, dbdir="salatimes"):
+        self.dbdir = dbdir if not dbdir.endswith('/') else dbdir[:-1]
         
-    def reopen(self):
-        if self.db != None:
-            self.save()
-            self.close()
-            
-        try:
-            self.f = open(self.dbfile, "r+b")
-        except OSError:
-            print("Salat db '",self.dbfile,"' seems not to exist ? creating a new one")
-            self.f = open(self.dbfile, "w+b")
-        self.db = btree.open(self.f)
     
     def isempty(self):
         try:
-            next(self.db.keys())
-            return False
+            files=os.listdir(self.dbdir)
+            return len(files) != 0
         except StopIteration:
             return True
         
-    def save(self):
-        self.db.flush()
-    
+    def iter_from(self, month, day, hour, min):
+        with open("%s/%02d.csv" % (self.dbdir, month),'r') as f:
+            for lidx,line in enumerate(f.readlines()):
+                da,hours=line.strip().split(',',1)
+                try:
+                    da=int(da)
+                except:
+                    if lidx==0: continue #Accept title line ...
+                    raise
+                if da < day: continue
+                for sidx, hm in enumerate(hours.split(',')):
+                    h,m=hm.split(':')
+                    h=int(h)
+                    if da==day and h < hour: continue
+                    m=int(m)
+                    if da==day and h==hour and m < min: continue
+                    yield sidx,month,da,h,m
+        if month < 12:
+            self.iter_from(month+1,1,0,0)
+        
+                    
+        
     def findfirstsalatafter(self, year, month, day, hour, min, failifnotfound=False):
         """ Will return info for next salat a tuple : (salatindex,time) 
             time is in sceonds since epoch"""
-        bisextile = year % 4 == 0
-        
-        for nextsalat in self.db.values(stimekey(month, day, hour, min), LAST_SALAT_KEY):
-            sidx,mo,da,h,m = (int(x) for x in nextsalat.split(b','))
-            if mo == 2 and da == 29 and not bisextile: continue
+        for sidx,mo,da,h,m in self.iter_from(month, day, hour, min):
+            if mo == 2 and da == 29 and not year % 4 == 0: 
+                #ignore 29 february for bissexstile year.
+                continue
             while h >= 24:
                 h = h - 24
                 year, mo, da = nextday(year, mo, da)
@@ -114,126 +104,63 @@ class SalatDB:
         sidx, (oy, omo, oda, oh, om) = self.findfirstsalatafter(y, m, d, h, mi)
         return sidx, time.mktime((oy, omo, oda, oh, om,0,-1,-1))
     
-    def setstime(self, month, day, sidx, stime):
-        """ Update salat with given time 
-            Format of hourd : "HH:MM" ==> HH can be > 23 (next day isha)
-        """
-        if month > 12 or month < 1: raise ValueError("Bad value for a month : %d" % month)
-        if day > dom(month) or day < 1: raise ValueError("Bad value for a day in month %d : %d" % (month, day))
-        try:
-            h,m=stime.split(':')
-            h=int(h) 
-            if h < 0: raise ValueError 
-            m=int(m)
-            if m < 0 or m > 59: raise ValueError
-        except ValueError:
-            raise ValueError("Bad time : %s" % stime)
-        print(stimekey(month, day, h, m), "%d,%d,%d,%d,%d" % (sidx, month, day, h, m))
-        gc.collect()
-        self.db[stimekey(month, day, h, m)]="%d,%d,%d,%d,%d" % (sidx, month, day, h, m)
+    def import_csv(self, month, data):
+        if month < 1 or month > 12: raise Exception("Bad month")
+        
+        file="%s/%02d.csv" % (self.dbdir, month)
+        with open(file+".tmp" , 'w') as f:
+            lastday=0
+            for lidx,line in enumerate(data.splitlines()):
+                da,hours=line.strip().split(',',2)
+                try:
+                    da=int(da)
+                except:
+                    if lidx==0: continue #Accept title line ...
+                    raise
+                if da != lastday+1: raise Exception("Bad CSV, days not in order")
+                lastday=da
+                for sidx, hm in enumerate(hours.split(',')):
+                    h,m=hm.split(':')
+                    h=int(h)
+                    m=int(m)
+                file.write(line)
+                
+        os.remove(file)
+        os.rename(file+".tmp",file)
     
-    def importcsv(self, csvlines):
-        """Example : MM,DD,FH:FM,CH:CM,DH:DM,AH:AM,MH:MM,IH:IM"""
-        for lnum,line in enumerate(csvlines.splitlines()):
-            line=line.strip()
-            if len(line) == 0: #Empty line
-                continue
-            items = list(x.strip().strip('"') for x 
-                        in line.replace(',',';').split(';'))
-            
-            if len(items) != 8:
-                raise ValueError("line %d : must be 8 Columns" % (lnum+1))
-            
-            try:
-                m = int(items[0])
-                d = int(items[1])
-            except ValueError:
-                raise ValueError("line %d : month or day is not a number" % (lnum+1))
-            
-            try:
-                for idx,stime in enumerate(items[2:]):
-                    self.setstime(m,d,idx,stime)
-            except ValueError as err:
-                raise ValueError("Line %d : bad times ... : %s" % str(err))
-        self.save()
-        
-    def iter_times(self, month):
-        """ Iterate over key/value pairs of given month """
-        for k,v in self.db.items(stimekey(month, 1, 0, 0), stimekey(month, 32, 23, 0)):
-            m = int(self.db[k].split(b',')[1])
-            if m == month: yield (k,v)
-        
     def import_mawaqit_month(self, month, data):
         """ Convert one month JSON (key = day num value = times) and load it"""
         if type(data) == str: data = json.loads(data)
-        #ITerate until first day of following monh
-        for k,_ in self.iter_times(month):
-            del self.db[k]
-            
-        #Load new month data
-        for day, times in data.items():
-            for idx,stime in enumerate(times):
-                self.setstime(month, int(day),idx,stime)
-        self.save()
-        
-    def import_mawaqit_month_stream(self, month, token_stream):
-        self.reopen()
-        
-        assert(next(token_stream)==(0,'{'))
-        while True:
-            _,day = next(token_stream)
-            assert(next(token_stream) == (0,':'))
-            assert(next(token_stream) == (0,'['))
-            for idx in range(0,6):
-                _,stime = next(token_stream)
-                try:
-                    self.setstime(month, int(day), idx, stime)
-                except OSError:
-                    print("OSError ! Trying to reopen and go on")
-                    self.reopen()
-                    self.setstime(month, int(day), idx, stime)
-                assert(next(token_stream) in ((0,','),(0,']')))
-            nt = next(token_stream)
-            if nt == (0,'}'): break
-            assert(nt == (0,',')) #Move to next day
-            
+        file="%s/%02d.csv" % (self.dbdir, month)
+        with open(file+".tmp" , 'w') as f:
+            #Load new month data
+            for day, times in data.items():
+                f.write(str(day))
+                f.write(b',')
+                f.write(b','.join(times))
+        os.remove(file)
+        os.rename(file+".tmp",file)
     
     def getsalarmdelay(self, sidx):
         """ Return salat alarm delay in mutes or none if none set """
-        k = self.db.get(salarmkey(sidx))
+        k = config.get(salarmkey(sidx), None)
         if k : return int(k)
         else: return None
         
     def setsalarmdelay(self, sidx, delayminutes=0):
         """ Set or delete salat alarm : 0 means delete """
-        k = salarmkey(sidx)
-        
-        if delayminutes == 0:
-            if k in self.db: del self.db[k]
-        else:
-            self.db[k] = '%02d' % delayminutes
+        config.set(salarmkey(sidx), delayminutes)    
     
     def getsvolume(self, sidx):
         """ Return salat alarm delay in mutes or none if none set """
-        k = self.db.get(svolumekey(sidx))
-        if k : return int(k)
-        else: return 30
+        k = config.get(svolumekey(sidx), 30)
+        return int(k)
         
     def setsvolume(self, sidx, volume):
         """ Set or delete salat alarm : 0 means delete """
         if volume < 0 or volume > 30: 
             raise ValueError("Volume must be between 0 and 30")
+        config.set(svolumekey(sidx), volume)
         
-        self.db[svolumekey(sidx)] = '%02d' % volume
-    
-    def resetdb(self):
-        if self.db != None:
-            self.close()
-        os.remove(self.dbfile)
-        self.reopen()
-        
-    def close(self):
-        self.db.close()
-        self.f.close()
-        self.db = None
-        self.f = None
+    def save(self):
+        config.save()

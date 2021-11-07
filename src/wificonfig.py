@@ -78,7 +78,7 @@ def updateConfig(cli, resp):
         return getStatus(cli,resp,"Timezone updated")
     if 'loadcsv' in data:
         try:
-            sdb.importcsv(data['csv'])
+            sdb.import_csv(data['csvmonth'],data['csv'])
             return getStatus(cli,resp,"Salat timetable updated successfully")
         except Exception as err:
             sys.print_exception(err)
@@ -89,6 +89,7 @@ def updateConfig(cli, resp):
             sdb.setsalarmdelay(sidx, int(data['salat%dalm'%sidx]))
             sdb.setsvolume(sidx, int(data['salat%dvol'%sidx]))
         sdb.save()
+    
     if 'updperfmode' in data:
         c=config.get()
         if data['perfmode']=='eco':
@@ -97,24 +98,7 @@ def updateConfig(cli, resp):
             c['alwaysAwake']=True
         config.update(c)
         
-    #if 'livestream' in data:
-    #    c=config.get()
-    #    c['livestream']={
-    #        'enabled': ?,
-    #        'url':data['livestreamurl'],
-    #        'liveAdhanDelaySecs': -1 disabled / autostart livestream after x,
-    #}
-    #    config.update(c)
-        
-    if 'syncmawaqit' in data:
-        try:
-            import mawaqit
-            mawaqit.dosync(sdb)
-            return getStatus(cli,resp,"Mawaqit Sync successful")
-        except Exception as err:
-            sys.print_exception(err)
-            return getStatus(cli,resp,"Error with CSV data : %s" % str(err))
-
+    
     return getStatus(cli,resp)
 
 @MicroWebSrv.route('/wifi')

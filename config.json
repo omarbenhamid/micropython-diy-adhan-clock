@@ -1,15 +1,1 @@
-{
-    "rtc": {
-        "ntphost": "pool.ntp.org",
-        "timezoneDeltaMinutes": 60,
-        "DS1302":false
-    },
-    "wifi": {
-        "SSID":"XXXXX",
-        "password":"XXXXXXX"
-    },
-    "mawaqit": {
-        "apikey":"XXXXXXXXXXXXXX",
-        "uuidMosquee":"XXXXXXXXXXXXX"
-    }
-}
+{"rtc": {"ntphost": "pool.ntp.org", "timezoneDeltaMinutes": 60, "DS1302": false}, "wifi": {"SSID": "XXXXX", "password": "XXXXXXX"}, "mawaqit": {"apikey": "XXXXXXXXXXXXXX", "uuidMosquee": "XXXXXXXXXXXXX"}, "salat": {"03": {"volumeLevel": 20}, "00": {"volumeLevel": 20, "alarmDelayMinutes": 20}, "01": {"volumeLevel": 30, "alarmDelayMinutes": 5}, "02": {"volumeLevel": 21}, "04": {"volumeLevel": 21, "alarmDelayMinutes": 5}, "05": {"volumeLevel": 20}}}
