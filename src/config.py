@@ -40,7 +40,7 @@ def set(key, value, save=False):
             c=c[k]
     c[lastk]=value
     if save:
-        self.update(config)
+        update(config)
         
 
 def update(newjson):
