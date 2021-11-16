@@ -338,6 +338,8 @@ try:
             print("Saying next salat at %r" % stime)
             _,_,_,h,mi,_,_,_ = time.localtime(stime)
             player.say_salat_at(sidx, h, mi)        
+            time.sleep_ms(1000)
+            player.say_random_reminder()
             
             sleepuntilnextsalat()
         else:

@@ -26,6 +26,9 @@ MSG_WIFI_SETUP=const(2)
 MSG_AT=const(3)
 
 SPEECH_DATA_FOLDER=3
+
+REMINDERS_FOLDER=4
+
 AUDIO_DIR_FMT="/sdcard/audiodata/%(folder)02d"
 AUDIO_URI_FMT="file:/"+AUDIO_DIR_FMT+"/%(track)03d"
 AUDIO_SUPPORTED_EXTS=[".wav",".mp3",".ogg"]
@@ -81,9 +84,13 @@ class AudioPlayer:
         pass
     
     def query_track_count(self, folder):
-        return 1+max(int(f[:-4]) for f in os.listdir(AUDIO_DIR_FMT % {"folder":folder}) 
+        try:
+            f=list(int(f[:-4]) for f in os.listdir(AUDIO_DIR_FMT % {"folder":folder}) 
                if f[-4:] in AUDIO_SUPPORTED_EXTS and len(f) == 7 \
                     and re.match('^[0-9]+$',f[:-4]))
+            return max(f) if f else 0
+        except OSError:
+            return 0
         
     def say_time(self, hours, minutes):
         if not SPEECH_DATA_FOLDER: 
@@ -107,6 +114,14 @@ class AudioPlayer:
     def say_minutes_to_salat(self, sidx, salm):
         self.play_track(SPEECH_DATA_FOLDER, SALAT_NAMES_TRACKS_FIRST+sidx, sync=True)
         self.play_track(SPEECH_DATA_FOLDER, MINUTES_TRACKS_FIRST+salm, sync=True)
+        
+    def say_random_reminder(self):
+        if not REMINDERS_FOLDER: return
+        cnt=self.query_track_count(REMINDERS_FOLDER)
+        if cnt == 0: return
+        self.play_track(REMINDERS_FOLDER, urandom.randrange(1,cnt+1), 
+                        sync=True)
+        
         
     def play_adhan(self, folder):
         self.play_track(folder, urandom.randrange(1,self.query_track_count(folder)+1), 
