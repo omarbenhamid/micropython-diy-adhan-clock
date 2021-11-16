@@ -44,9 +44,9 @@ from machine import *
 LED_PIN=Pin(19, Pin.OUT, Pin.PULL_DOWN)
 LED_ON_VALUE=False
 ADC_KEYS_PIN=None
-WBUTTON_PIN=Pin(23,Pin.IN,Pin.PULL_UP)
-VOL_UP_PIN=Pin(5,Pin.IN,Pin.PULL_UP)
-VOL_DN_PIN=Pin(18,Pin.IN,Pin.PULL_UP)
+WBUTTON_PIN=Pin(5,Pin.IN,Pin.PULL_UP)
+VOL_UP_PIN=Pin(19,Pin.IN,Pin.PULL_UP)
+VOL_DN_PIN=Pin(36,Pin.IN,Pin.PULL_UP)
 AUDIO_PLAYER_UART=None
 
 WEB_DIR="/web" #No / at the end please ...
