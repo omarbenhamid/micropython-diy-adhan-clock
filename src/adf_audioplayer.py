@@ -31,7 +31,7 @@ REMINDERS_FOLDER=4
 
 AUDIO_DIR_FMT="/sdcard/audiodata/%(folder)02d"
 AUDIO_URI_FMT="file:/"+AUDIO_DIR_FMT+"/%(track)03d"
-AUDIO_SUPPORTED_EXTS=[".wav",".mp3",".ogg"]
+AUDIO_SUPPORTED_EXTS=[".wav",".mp3",".ogg",".amr"]
 
 AUDIO_MAX_VOLUME=80
 
