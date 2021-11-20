@@ -3,6 +3,14 @@ import arch
 arch.LED_PIN.value(1)
 
 import machine
+import os
+import sys
+import utils
+
+#Mount SDCard readonly by default
+#In case write is needed we will ened to remount it.
+utils.mount_sdcard()
+
 from machine import Pin, PWM, UART
 import time
 import micropython
@@ -11,7 +19,6 @@ import esp32
 from timesdb import SalatDB, SALATS, SPEECH_VOL_SIDX
 from rtc import localtime, ntpsync
 import urandom
-import sys
 import taskloop
 import config
 

@@ -8,8 +8,13 @@ ampy --port COM3 put main.py
 
 """
 import sys
+
+sys.path.append('/core')
+
+# Eventually check and perofom autoupdates.
 sys.path.append('/src')
-from src.main import *
+
+from fc_main import *
 
 def disablemain():
     import os

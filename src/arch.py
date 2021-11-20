@@ -27,7 +27,8 @@ from machine import *
 #SPEAKER_PIN=None #const(2)
 #AUDIO_PLAYER_UART=const(2)
 
-## Lyrat Min
+## Lyrat Mini
+#
 #import wbuttons
 #LED_PIN=Pin(27, Pin.OUT, Pin.PULL_UP)
 #ADC_KEYS_PIN=const(39)
@@ -35,7 +36,9 @@ from machine import *
 #VOL_UP_PIN=wbuttons.ADCButton(606, 1107)
 #VOL_DN_PIN=wbuttons.ADCButton(0, 606)
 #AUDIO_PLAYER_UART=None
-
+#
+#Pin(13, machine.Pin.OUT, machine.Pin.PULL_DOWN) #Pull down pin13 to enable sdcard as required by Lyrat mini
+    
 # A1S 3378 ES8388
 # https://docs.ai-thinker.com/en/esp32-audio-kit
 # Keys: 5 18 23 19 13 36 

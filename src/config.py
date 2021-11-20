@@ -1,7 +1,10 @@
 import json
 import sys
+import utils
+import os
 
-CONFIG_LOC="/sdcard/config.json"
+CONFIG_LOC="/config.json"
+CONFIG_SDCARD_UPDATE='/sdcard/config.json'
 
 config={}
 
@@ -51,5 +54,13 @@ def update(newjson):
 def save():
     global config
     update(config)
-    
+
+# Update config.json from sdcard if exits.
+if CONFIG_SDCARD_UPDATE and utils.path_isfile(CONFIG_SDCARD_UPDATE):
+    with utils.rw_sd:
+        if utils.path_isfile(CONFIG_LOC):
+            utils.copyfile(CONFIG_LOC, CONFIG_SDCARD_UPDATE+'.backup')
+        utils.copyfile(CONFIG_SDCARD_UPDATE, CONFIG_LOC)
+        os.remove(CONFIG_SDCARD_UPDATE)
+
 reload()
