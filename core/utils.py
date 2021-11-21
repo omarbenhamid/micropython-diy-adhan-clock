@@ -22,8 +22,8 @@ def recurse(root, dirs=False):
         typ,_,_,_,_,_,_,_,mtime,_=os.stat(pth)
         if typ == S_IF_FIL:
             yield pth
-        elif type == S_IF_DIR:
-            for outcome in iterdir(pth): yield outcome
+        elif typ == S_IF_DIR:
+            for outcome in recurse(pth, dirs): yield outcome
             if dirs: yield pth
             
 def path_exists(path):
@@ -50,6 +50,23 @@ def path_isdir(path):
     except:
         return False
     
+def path_join(*args, sep='/'):
+    """
+        Join provided path segments using the sep kwarg as separator (/ by default)
+        if the first provided segment starts with sep it is kept.
+        
+        ```
+        >>> path_join('/toto//','titi','/tata')
+        '/toto/titi/tata'
+        >>> path_join('toto','titi','tata')
+        'toto/titi/tata'
+    """
+    ret=sep.join(seg.strip(sep) for seg in args)
+    if args[0].startswith(sep):
+        return sep+ret
+    else:
+        return ret
+    
 def copyfileobj(fsrc, fdst, length=16*1024):
     """copy data from file-like object fsrc to file-like object fdst"""
     while 1:
@@ -64,30 +81,53 @@ def copyfile(path,to_path):
             copyfileobj(inf,outf)
     
 def rmdir_deep(path):
-    for f in recurse_dir(path,dirs=False):
+    if not path_exists(path):
+        return
+    for f in recurse(path,dirs=False):
         os.remove(f)
-    for f in recurse_dir(path,dirs=True):
+    for f in recurse(path,dirs=True):
         os.rmdir(f)
     os.rmdir(path)
 
+def makedirs(path, sep='/'):
+    if path.startswith(sep):
+        p=''
+    else:
+        p='.'
+    for seg in path.strip(sep).split(sep):
+        p=p+sep+seg
+        if not path_exists(p): os.mkdir(p)
+    
+################# Writable SDCard ops
 class __WritableSDContext():
+    def __init__(self):
+        self._depth=0
     def __enter__(self):
-        mount_sdcard(False, False)
+        if self._depth == 0:
+            mount_sdcard(False, False)
+        self._depth=self._depth+1
     
     def __exit__(self,*exc_info):
-        mount_sdcard(True)
+        self._depth=self._depth-1
+        if self._depth == 0:
+            mount_sdcard(True)
+        
 
 rw_sd=__WritableSDContext()
 
-sdcard=None      
+sdcard=None
 def mount_sdcard(readonly=True, ignoreerrors=True):
     global sdcard
+    
+    
     if not sdcard:
         sdcard=machine.SDCard()
+    
     try:
         os.umount('/sdcard')
     except:
         pass
+    
     try:
         os.mount(sdcard, '/sdcard', readonly=readonly)
         return True
@@ -97,3 +137,4 @@ def mount_sdcard(readonly=True, ignoreerrors=True):
         sys.print_exception(e)
         print("SDCard Not Mounted : Error")
         return False
+    

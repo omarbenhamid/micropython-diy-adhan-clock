@@ -7,10 +7,6 @@ import os
 import sys
 import utils
 
-#Mount SDCard readonly by default
-#In case write is needed we will ened to remount it.
-utils.mount_sdcard()
-
 from machine import Pin, PWM, UART
 import time
 import micropython

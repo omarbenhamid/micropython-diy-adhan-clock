@@ -1,26 +1,31 @@
 """
-ampy --port COM3 put src
-ampy --port COM3 put config.json
-ampy --port COM3 put web
-ampy --port COM3 put main.py
-
-#And you're done...
-
+Look at deploy in README.md
 """
 import sys
 
 sys.path.append('/core')
-
+import utils
 # Eventually check and perofom autoupdates.
+sys.path.append('/update/src')
 sys.path.append('/src')
 
-from fc_main import *
+utils.mount_sdcard(True)
 
-def disablemain():
+if not utils.path_exists('.block'):
+    print("Staring main app, to block use the main.block() function")
+    #TODO: check and perform autoupdates
+    from fc_main import *
+else:
+    print("Blocked mode, to unblock use main.unblock(), for manual start call main.run()")
+
+def block():
     import os
-    os.rename('main.py','omain.py')
+    open('.block','wb').write("haha")
     
-def enablemain():
+def unblock():
     import os
-    os.rename('omain.py','main.py')
+    if utils.path_exists('.block'): 
+        os.remove('.block')
     
+def run():
+    import fc_main
