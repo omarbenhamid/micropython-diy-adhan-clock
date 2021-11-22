@@ -25,6 +25,11 @@ MSG_TIME_IS_NOW=const(1)
 MSG_WIFI_SETUP=const(2)
 MSG_AT=const(3)
 
+MSG_WIFI_DOWN=const(4)
+MSG_UPDATING=const(5)
+MSG_NO_UPDATE=const(6)
+MSG_RECONFIGURE=const(7)
+
 SPEECH_DATA_FOLDER=3
 
 REMINDERS_FOLDER=4
@@ -121,8 +126,23 @@ class AudioPlayer:
         if cnt == 0: return
         self.play_track(REMINDERS_FOLDER, urandom.randrange(1,cnt+1), 
                         sync=True)
-        
-        
+
+    def say_wifi_ko(self,sync=True):
+        self.play_track(SPEECH_DATA_FOLDER, MSG_WIFI_DOWN, 
+                        sync=sync)
+    
+    def say_updating(self,sync=True):
+        self.play_track(SPEECH_DATA_FOLDER, MSG_UPDATING, 
+                        sync=sync)
+    
+    def say_no_update(self,sync=True):
+        self.play_track(SPEECH_DATA_FOLDER, MSG_NO_UPDATE, 
+                        sync=sync)
+    
+    def say_reconfigured(self,sync=True):
+        self.play_track(SPEECH_DATA_FOLDER, MSG_RECONFIGURE, 
+                        sync=sync)
+    
     def play_adhan(self, folder):
         self.play_track(folder, urandom.randrange(1,self.query_track_count(folder)+1), 
                         sync=True)
@@ -132,4 +152,12 @@ class AudioPlayer:
     
     def isstopped(self):
         return self.player.get_state()["status"] != audio.player.STATUS_RUNNING
-    
+
+
+sharedplayer=None
+
+def getplayer():
+    global sharedplayer
+    if not sharedplayer:
+        sharedplayer=AudioPlayer(ignoreerrors=True)
+    return sharedplayer

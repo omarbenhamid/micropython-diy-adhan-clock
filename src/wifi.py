@@ -23,6 +23,18 @@ WIFI_CONN_TIMEOUT_MS=30*1000
 
 conn = network.WLAN(network.STA_IF)
 
+def say_wifi_ko_safe():
+    try:
+        import arch
+        if arch.AUDIO_PLAYER_UART:
+            import yx5300_audioplayer as audioplayer
+        else:
+            import adf_audioplayer as audioplayer
+        audioplayer.getplayer().say_wifi_ko(sync=True)
+    except:
+        pass
+    
+
 def connect(SSID=None, password=None, timeoutmillis=None):
     """
         Connect to given or configured wifi.
@@ -49,6 +61,7 @@ def connect(SSID=None, password=None, timeoutmillis=None):
 
     if not conn.isconnected():
         conn.active(False) #disable connection
+        say_wifi_ko_safe()
         raise Exception("Cannot connect to wifi")
 
 def disconnect():

@@ -58,7 +58,7 @@ wbutton = arch.WBUTTON_PIN
 volup=arch.VOL_UP_PIN 
 voldn=arch.VOL_DN_PIN
 
-player = audioplayer.AudioPlayer(ignoreerrors=True)
+player = audioplayer.getplayer() 
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
@@ -142,7 +142,7 @@ def irq_stop_adhan(pin):
 
 currvol=30
 currsidx=None
-VOL_STEP=1
+VOL_STEP=5
 VOL_STEP_MS=200
 
 def _do_vol_up():
@@ -254,6 +254,18 @@ def adhan(sidx):
     
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):
+    try:
+        import autoupdater, wifi
+        with wifi: 
+            if autoupdater.download_updates():
+                player.say_updating(True)
+                autoupdater.deploy_updates()
+                machine.deepsleep(1)
+            else:
+                player.say_no_update(True)
+    except Exception as e:
+        sys.print_exception(e)
+        print("Update aborted due to exception")
     micropython.schedule(lambda x: sleepuntilnextsalat(False),0)
 
 def match_time(tgttime, currtime):
@@ -355,7 +367,7 @@ try:
         led_on()
         import wificonfig
         PWM(arch.LED_PIN,1)
-        wificonfig.start(sdb)
+        wificonfig.start(sdb, player)
         wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING)
         if sdb.isempty():
             print('Wifi config started, salat times empty')

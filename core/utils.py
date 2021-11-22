@@ -138,3 +138,15 @@ def mount_sdcard(readonly=True, ignoreerrors=True):
         print("SDCard Not Mounted : Error")
         return False
     
+########################
+
+def getaudioplayer():
+    """Get the audio player, lazily load necessary modules """
+    try:
+        import arch
+        if arch.AUDIO_PLAYER_UART:
+            import yx5300_audioplayer as audioplayer
+        else:
+            import adf_audioplayer as audioplayer
+    except:
+        return None

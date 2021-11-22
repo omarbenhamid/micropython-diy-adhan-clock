@@ -23,6 +23,7 @@ web = None
 
 # The salat database
 sdb = None
+player = None
 
 @MicroWebSrv.route('/status')
 def getStatus(cli, resp, message=""):
@@ -98,7 +99,7 @@ def updateConfig(cli, resp):
             c['alwaysAwake']=True
         config.update(c)
         
-    
+    player.say_reconfigured(sync=False)
     return getStatus(cli,resp)
 
 @MicroWebSrv.route('/wifi')
@@ -150,13 +151,16 @@ def updateWifi(cli, resp):
     config.update(c)
     try:
         wifi.connect(timeoutmillis=30*1000)
+        player.say_reconfigured(sync=False)
         return getWifiSetup(cli, resp, "Connected successully to "+SSID)
     except:
+        player.say_reconfigured(sync=False)
         return getWifiSetup(cli, resp, "Failed to connect")
 
-def start(_sdb):
-    global dns, web, sdb
+def start(_sdb, _player):
+    global dns, web, sdb, player
     sdb = _sdb
+    player=_player
     ## Starting Wifi Access Poijnt
     wlan.active(1)
     wlan.config(essid="MyFajrClock")

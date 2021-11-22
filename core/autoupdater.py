@@ -244,15 +244,22 @@ class UpdatableModule():
         
 MODULES=[
     UpdatableModule('salatimes/annur.de','/sdcard/times'),
-    UpdatableModule('app/main','/updated'),
+    UpdatableModule('app/main','/update'),
     UpdatableModule('app/web','/web'),
+    UpdatableModule('app/audiodata','/sdcard/audiodata')
 ]
 
 def download_updates():
+    ret=False
     for mod in MODULES:
-        mod.download_updates()
+        print("check "+mod.name)
+        ret=mod.download_updates() or ret
+    return ret
 
-def apply_updates():
+def deploy_updates():
+    ret=False
     for mod in MODULES:
-        mod.apply_updates()
+        print("deploy "+mod.name)
+        ret=mod.deploy_updates() or ret
+    return ret
 
