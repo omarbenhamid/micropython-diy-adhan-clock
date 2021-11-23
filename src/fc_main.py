@@ -7,7 +7,7 @@ import os
 import sys
 import utils
 
-from machine import Pin, PWM, UART
+from machine import Pin, UART
 import time
 import micropython
 from micropython import const
@@ -133,7 +133,6 @@ def _do_stop_adhan(_dumb):
     sleepuntilnextsalat()
     # First initilization
 
-pwm = None
 _stopadhan=False
 def irq_stop_adhan(pin):
     global _stopadhan
@@ -311,23 +310,24 @@ try:
     if config.get("alwaysAwake",True):
         #TODO: here add breathing led tasks to taskloop
         led_off()
-        nextsalat=time.ticks_ms()+__next_salat_delta()*1000
-        wbutton.irq(lambda pin: taskloop.stoploop())
-        taskloop.mainloop(until_ms=nextsalat)
-        led_on()
-        wbutton.irq(None)
-        if time.ticks_ms() > nextsalat:
-            startmode=STM_ADHAN
+        nextsalat=time.ticks_ms()+__next_salat_delta()*1000 
+        if wbutton.value() == 0:  
+            #Wbutton pressed at startup => Config mode
+            startmode=STM_CONFIG
         else:
-            time.sleep_ms(LONGPRESS_DELAY_MS)
-            if wbutton.value() == 0:
-                startmode=STM_CONFIG
+            #Wait for button press or next salat
+            wbutton.irq(lambda pin: taskloop.stoploop())
+            taskloop.mainloop(until_ms=nextsalat)
+            led_on()
+            wbutton.irq(None)
+            if time.ticks_ms() > nextsalat:
+                startmode=STM_ADHAN
             else:
-                #TODO: add livestream managemlent : 
-                # if livestream is availale not playing play livestream and enter taskloop again.
-                # if livestrime playing : stop livestream and loop again
-                # => To "loop again": have a wile startmode=None and keep it None ...
-                startmode=STM_TIME
+                time.sleep_ms(LONGPRESS_DELAY_MS)
+                if wbutton.value() == 0:
+                    startmode=STM_CONFIG
+                else:
+                    startmode=STM_TIME
     else:
         if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
             if wbutton.value(): 
@@ -366,7 +366,6 @@ try:
         # Config button still pressed or no salat times loaded
         led_on()
         import wificonfig
-        PWM(arch.LED_PIN,1)
         wificonfig.start(sdb, player)
         wbutton.irq(on_wifi_btn, Pin.IRQ_FALLING)
         if sdb.isempty():

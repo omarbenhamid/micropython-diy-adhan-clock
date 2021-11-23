@@ -21,3 +21,7 @@ ampy put web/* web
 ampy put main.py /
 
 ```
+
+# Developer docs :
+
+do not use PWM !! (PWM on pin 19 Disabled audio playing)
