@@ -21,6 +21,7 @@ import time
 import smartconfig
 import taskloop
 import micropython
+import sys
 
 WIFI_CONN_TIMEOUT_MS=30*1000
 
@@ -44,7 +45,7 @@ def say_reconfigured_safe():
             import yx5300_audioplayer as audioplayer
         else:
             import adf_audioplayer as audioplayer
-        audioplayer.getplayer().say_wifi_ko(sync=True)
+        audioplayer.getplayer().say_reconfigured(sync=True)
     except:
         pass
     
@@ -125,7 +126,7 @@ def __check_smartconfig_status():
 def start_smartconfig():
     conn.active(True)
     
-    smartconfig.set_type(smartconfig.ESPTOUCH)
+    smartconfig.set_type(smartconfig.SC_TYPE_ESPTOUCH)
     smartconfig.start()
     
     taskloop.sched_task(__check_smartconfig_status, repeat_ms=500)
