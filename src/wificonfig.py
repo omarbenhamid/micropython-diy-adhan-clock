@@ -157,6 +157,7 @@ def updateWifi(cli, resp):
         player.say_reconfigured(sync=False)
         return getWifiSetup(cli, resp, "Failed to connect")
 
+
 def start(_sdb, _player):
     global dns, web, sdb, player
     sdb = _sdb
@@ -172,6 +173,7 @@ def start(_sdb, _player):
     dns.SetDomainsList({"*":ip})
     dns.Start()
     web.Start(True)
+    wifi.start_smartconfig()
 
 
 def stop():

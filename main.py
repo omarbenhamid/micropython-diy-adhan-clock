@@ -20,7 +20,7 @@ if _fsafe:
 
 if not _fsafe and utils.path_exists('/update/vtag'):
     print("Runnning updated app, use main.failsafe(True) or create failsafe.txt in SDCard to force original app")
-    sys.path.append('/update/src')
+    sys.path.append('/updated')
 else:
     print("Running original app")
     sys.path.append('/src')

@@ -247,8 +247,9 @@ class UpdatableModule():
 
 MODULES=[
     UpdatableModule('salatimes/annur.de','/sdcard/times'),
-    UpdatableModule('app/main','/update'),
+    UpdatableModule('app/main','/updated'),
     UpdatableModule('app/web','/web'),
+    UpdatableModule('app/core','/core'),
     UpdatableModule('app/audiodata','/sdcard/audiodata')
 ]
 
