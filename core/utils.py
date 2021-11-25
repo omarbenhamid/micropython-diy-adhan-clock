@@ -150,3 +150,16 @@ def getaudioplayer():
             import adf_audioplayer as audioplayer
     except:
         return None
+
+_udid=None
+def get_unique_device_id():
+    """ Get uniqeu device id 
+    it is a sha256 hash of the mac adress
+    """
+    global _udid
+    if not _udid:
+        import hashlib,wifi,binascii
+        _udid=binascii.hexlify(hashlib.sha256(wifi.conn.config('mac')).digest())
+    return _udid
+    
+    

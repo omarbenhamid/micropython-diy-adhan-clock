@@ -6,13 +6,19 @@ class Response:
         self.raw = f
         self.encoding = "utf-8"
         self._cached = None
+        
+    def __enter__(self):
+        return self
 
     def close(self):
         if self.raw:
             self.raw.close()
             self.raw = None
         self._cached = None
-
+    
+    def __exit__(self, *exc_info):
+        self.close()
+    
     @property
     def content(self):
         if self._cached is None:

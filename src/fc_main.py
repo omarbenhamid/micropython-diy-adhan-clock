@@ -55,10 +55,10 @@ sdb = SalatDB()
 
 #Wifi setup button
 wbutton = arch.WBUTTON_PIN
-volup=arch.VOL_UP_PIN 
+volup=arch.VOL_UP_PIN
 voldn=arch.VOL_DN_PIN
 
-player = audioplayer.getplayer() 
+player = audioplayer.getplayer()
 
 FAJR_ADHAN_FOLDER=const(1)
 ALL_ADHAN_FOLDER=const(2)
@@ -74,18 +74,30 @@ def setup_wakeup(pin_or_adc):
     if isinstance(pin_or_adc, Pin):
         esp32.wake_on_ext0(pin_or_adc, esp32.WAKEUP_ALL_LOW)
         return
-    
+
     raise Exception("Unable to handle this type of buttons : %r" % pin_or_adc)
 
 
 def led_on():
     if arch.LED_PIN:
         arch.LED_PIN.value(arch.LED_ON_VALUE)
-        
+
 def led_off():
     if arch.LED_PIN:
         arch.LED_PIN.value(not arch.LED_ON_VALUE)
 
+def _autoupdate():
+    try:
+        import autoupdater, wifi
+        with wifi:
+            if autoupdater.download_updates():
+                player.say_updating(True)
+                autoupdater.deploy_updates()
+                machine.deepsleep(1)
+    except Exception as e:
+        sys.print_exception(e)
+        print("Update aborted due to exception")
+    
 def __next_salat_delta():
         if time.time() < 100000: #Still in year 2000 !
             try:
@@ -94,7 +106,7 @@ def __next_salat_delta():
                 pass
         sidx, stime = sdb.findnextsalat(1)
         salm = sdb.getsalarmdelay(sidx)
-        
+
         delta = -1
         if salm != None:
             almtm = stime - (60 * salm)
@@ -104,10 +116,10 @@ def __next_salat_delta():
         if delta <= 0:
             delta = stime-time.mktime(localtime())
             print("Next salat %s in %d seconds" % (SALATS[sidx], delta))
-        
+
         if delta > 24*3600: delta=24*3600
         return delta
-    
+
 def sleepuntilnextsalat(raise_exceptions=True):
     """ returns idx when next salat time arrives """
     try:
@@ -146,30 +158,30 @@ VOL_STEP_MS=200
 
 def _do_vol_up():
     global currvol, currsidx
-    
+
     currvol=currvol+VOL_STEP
-    
+
     if currvol > 30: currvol=30
-    
+
     sdb.setsvolume(currsidx, currvol)
     player.volume(currvol)
-    
+
     if volup.value() == 0:
         taskloop.sched_task(_do_vol_up, time.ticks_ms()+VOL_STEP_MS)
     else:
         sdb.save()
 
-    
+
 def _do_vol_dn():
     global currvol, currsidx
-    
+
     currvol=currvol-VOL_STEP
-    
+
     if currvol < VOL_STEP: currvol=VOL_STEP
-    
+
     sdb.setsvolume(currsidx, currvol)
     player.volume(currvol)
-    
+
     if voldn.value() == 0:
         taskloop.sched_task(_do_vol_dn, time.ticks_ms()+VOL_STEP_MS)
     else:
@@ -177,20 +189,20 @@ def _do_vol_dn():
 
 def irq_vol_control(pin):
     global currvol
-    
+
     if pin == volup:
         op=_do_vol_up
     if pin == voldn:
         op=_do_vol_dn
     taskloop.sched_task(op)
-    
+
 def _setupvolcontrol(sidx=SPEECH_VOL_SIDX):
     global currvol, currsidx
     if volup:
         volup.irq(irq_vol_control, trigger=Pin.IRQ_FALLING)
     if voldn:
         voldn.irq(irq_vol_control, trigger=Pin.IRQ_FALLING)
-    
+
     currsidx=sidx
     currvol=sdb.getsvolume(sidx)
     player.volume(currvol)
@@ -209,24 +221,24 @@ def alarm(sidx, salm):
         if _stopadhan: return
         time.sleep_ms(50)
     led_on()
-    player.say_minutes_to_salat(sidx, salm) 
-    
+    player.say_minutes_to_salat(sidx, salm)
+
 def adhan(sidx):
     global _stopadhan
     _stopadhan=False
     wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
     print('Adhan %s' % SALATS[sidx])
     led_on()
-    
+
     if sidx == 1: #chorok : beep only
         _setupvolcontrol(sidx)
         player.say_salat_name(1)
         return
-    
+
     urandom.seed(int(time.mktime(localtime())/60))
     # RNG needs some heat up to get a good enough quality
     for k in range(1,10): urandom.random()
-    
+
     player.wakeup()
     _setupvolcontrol(sidx)
     if sidx == 0: #Fajr special ringing
@@ -250,21 +262,12 @@ def adhan(sidx):
         player.say_current_time(h, mi)
         time.sleep_ms(500)
         player.play_adhan(ALL_ADHAN_FOLDER)
-    
+
+
+
 timer = machine.Timer(0)
 def turnoff_wificonfig(timer):
-    try:
-        import autoupdater, wifi
-        with wifi: 
-            if autoupdater.download_updates():
-                player.say_updating(True)
-                autoupdater.deploy_updates()
-                machine.deepsleep(1)
-            else:
-                player.say_no_update(True)
-    except Exception as e:
-        sys.print_exception(e)
-        print("Update aborted due to exception")
+    _autoupdate()
     micropython.schedule(lambda x: sleepuntilnextsalat(False),0)
 
 def match_time(tgttime, currtime):
@@ -272,26 +275,27 @@ def match_time(tgttime, currtime):
         If a match is found, the return will be delayed in order to ensure it will not match
         again
     """
-    if tgttime <= currtime and (currtime - tgttime) < BOOT_LATENCY_SECS: 
+    if tgttime <= currtime and (currtime - tgttime) < BOOT_LATENCY_SECS:
         print("Time matching %d and %d" % (tgttime,currtime))
         time.sleep(BOOT_LATENCY_SECS-(currtime-tgttime))
         return True
     print("Time notmatching %d and %d" % (tgttime,currtime))
     return False
-                
+
 
 _last_btn_press = 0
 def on_wifi_btn(pin):
     # End wificonfig session
     global _last_btn_press
     #DEbounce
-    tick=time.ticks_ms() 
+    tick=time.ticks_ms()
     if (tick - _last_btn_press) < 200: return
     _last_btn_press = tick
+
     timer.init(period=500, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
 
 def sync_times_mawaqit():
-    """ Supposes mawaqit.json exists with 'SSID','password','mcode','apikey' where 
+    """ Supposes mawaqit.json exists with 'SSID','password','mcode','apikey' where
     mcode = mosque UUID in mawaqit (obtained through search api).
     """
     import mawaqit
@@ -310,8 +314,8 @@ try:
     if config.get("alwaysAwake",True):
         #TODO: here add breathing led tasks to taskloop
         led_off()
-        nextsalat=time.ticks_ms()+__next_salat_delta()*1000 
-        if wbutton.value() == 0:  
+        nextsalat=time.ticks_ms()+__next_salat_delta()*1000
+        if wbutton.value() == 0:
             #Wbutton pressed at startup => Config mode
             startmode=STM_CONFIG
         else:
@@ -330,13 +334,13 @@ try:
                     startmode=STM_TIME
     else:
         if machine.wake_reason() == machine.EXT0_WAKE or sdb.isempty():
-            if wbutton.value(): 
+            if wbutton.value():
                 startmode=STM_TIME
             else:
                 startmode=STM_CONFIG
         else:
             startmode=STM_ADHAN
-    
+
     if startmode==STM_TIME:
         #Button not pressed (0 = pressed !) : say time and exit
         led_on()
@@ -347,21 +351,21 @@ try:
         print("Saying curren ttime")
         #Stop when clicking
         wbutton.irq(irq_stop_adhan, Pin.IRQ_FALLING)
-        
+
         player.say_current_time(h, mi)
-        
+
         if not sdb.isempty():
             sidx, stime = sdb.findnextsalat()
             print("Saying next salat at %r" % stime)
             _,_,_,h,mi,_,_,_ = time.localtime(stime)
-            player.say_salat_at(sidx, h, mi)        
+            player.say_salat_at(sidx, h, mi)
             time.sleep_ms(1000)
             player.say_random_reminder()
-            
+
             sleepuntilnextsalat()
         else:
             startmode=STM_CONFIG
-            
+
     if startmode==STM_CONFIG:
         # Config button still pressed or no salat times loaded
         led_on()
@@ -375,9 +379,9 @@ try:
             timer.init(period=5*60000, mode=machine.Timer.ONE_SHOT, callback=turnoff_wificonfig)
         player.wakeup()
         _setupvolcontrol()
-        player.play_track(audioplayer.SPEECH_DATA_FOLDER,audioplayer.MSG_WIFI_SETUP, sync=False) #"Time now is"        
+        player.play_track(audioplayer.SPEECH_DATA_FOLDER,audioplayer.MSG_WIFI_SETUP, sync=False) #"Time now is"
         taskloop.mainloop()
-    
+
     if startmode==STM_ADHAN:
         #Verify adhan
         try:
@@ -390,16 +394,21 @@ try:
         if match_time(stime,currtime):
             adhan(sidx)
         #IF alamr make alarm
-        
+
         salm = sdb.getsalarmdelay(sidx)
         if salm != None:
             almtm = stime - (60 * salm)
             if match_time(almtm,currtime):
                 alarm(sidx, salm)
+
+        if sidx in (2,3,4) and urandom.randrange(1,3)==1:
+            #Randomly, autoupdate in once a day in dohr, asr or maghrib
+            #Smooth the update download over 30 seconds after salat 
+            time.sleep(urandom.randrange(0,30))
+            _autoupdate()
         
-        
-        sleepuntilnextsalat() 
-    
+        sleepuntilnextsalat()
+
 except Exception as err:
     led_on()
     with open('exception.log','w') as log:
