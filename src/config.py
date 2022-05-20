@@ -8,6 +8,17 @@ CONFIG_SDCARD_UPDATE='/sdcard/config.json'
 
 config={}
 
+if not utils.path_exists(CONFIG_LOC):
+    print("config.json not found, writing minimum config")
+    with open(CONFIG_LOC,'w') as f:
+        json.dump({
+            "rtc": {
+                "ntphost": "pool.ntp.org",
+                "timezoneDeltaMinutes": 120,
+                "DS1302": False
+            }
+        }, f)
+
 def reload():
     global config
     try:
